@@ -92,7 +92,7 @@ export interface MyselfInfo {
 
 // AI相談ペイロード
 export interface ConsultPayload {
-  userType: "FREE" | "PREMIUM";
+  userType: "FREE" | "PREMIUM" | "DEEP";
   myself: MyselfInfo | null; // 自分のプロフィール（未登録時はnull）
   target: {
     nickname: string;

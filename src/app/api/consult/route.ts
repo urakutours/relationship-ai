@@ -7,7 +7,7 @@ import type { ConsultPayload, MyselfInfo } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
   try {
-    const { personId, consultationContext, userType = "FREE" } = await request.json();
+    const { personId, consultationContext, userType = "FREE", consultType = "standard" } = await request.json();
 
     if (!personId || !consultationContext) {
       return NextResponse.json(
@@ -61,8 +61,9 @@ export async function POST(request: NextRequest) {
     }
 
     // ペイロード構築
+    const resolvedUserType = consultType === "deep" ? "DEEP" : (userType === "PREMIUM" ? "PREMIUM" : "FREE");
     const payload: ConsultPayload = {
-      userType: userType === "PREMIUM" ? "PREMIUM" : "FREE",
+      userType: resolvedUserType,
       myself,
       target: {
         nickname: person.nickname,

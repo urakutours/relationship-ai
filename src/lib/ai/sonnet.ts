@@ -5,6 +5,7 @@ import {
   DIVINATION_SYSTEM_PROMPT,
   SONNET_CONSULT_FREE_INSTRUCTION,
   SONNET_CONSULT_PREMIUM_INSTRUCTION,
+  SONNET_CONSULT_DEEP_INSTRUCTION,
 } from "./prompts";
 import { getClient } from "./client";
 import { calculateCost } from "@/lib/cost-tracker";
@@ -16,6 +17,7 @@ const SONNET_MODEL = "claude-sonnet-4-6";
 const TOKEN_LIMITS = {
   FREE: 600,
   PREMIUM: 1200,
+  DEEP: 1500,
 } as const;
 
 /** ディープ相談の結果型 */
@@ -33,11 +35,13 @@ export async function generateConsultation(
   const anthropic = getClient();
   const { userType, myself, target, consultationContext } = payload;
 
-  const maxTokens = TOKEN_LIMITS[userType];
+  const maxTokens = TOKEN_LIMITS[userType] ?? TOKEN_LIMITS.FREE;
   const instruction =
-    userType === "PREMIUM"
-      ? SONNET_CONSULT_PREMIUM_INSTRUCTION
-      : SONNET_CONSULT_FREE_INSTRUCTION;
+    userType === "DEEP"
+      ? SONNET_CONSULT_DEEP_INSTRUCTION
+      : userType === "PREMIUM"
+        ? SONNET_CONSULT_PREMIUM_INSTRUCTION
+        : SONNET_CONSULT_FREE_INSTRUCTION;
 
   // myself（自分）セクションの構築
   let myselfSection = "";

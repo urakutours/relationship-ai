@@ -82,65 +82,115 @@ export default function PersonsListPage() {
           </Link>
         </div>
       ) : (
-        <div className="space-y-0">
-          {/* ヘッダー行 */}
-          <div className="flex items-center px-4 py-2 text-[11px] text-text-muted uppercase font-display tracking-widest border-b border-border-subtle">
-            <span className="flex-1">Name</span>
-            <span className="w-24 text-center">Relation</span>
-            <span className="w-20 text-center">Score</span>
-            <span className="w-16" />
-          </div>
+        <>
+          {/* === デスクトップ: テーブル形式 === */}
+          <div className="hidden md:block space-y-0">
+            {/* ヘッダー行 */}
+            <div className="flex items-center px-4 py-2 text-[11px] text-text-muted uppercase font-display tracking-widest border-b border-border-subtle">
+              <span className="flex-1">Name</span>
+              <span className="w-24 text-center">Relation</span>
+              <span className="w-20 text-center">Score</span>
+              <span className="w-16" />
+            </div>
 
-          {/* 人物リスト */}
-          {persons.map((person) => {
-            const div = divinations[person.id];
-            return (
-              <div
-                key={person.id}
-                className="flex items-center px-4 py-4 border-b border-border-subtle hover:bg-surface-hover transition-colors duration-200 group"
-              >
-                {/* 名前・観察メモ */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3">
-                    <span className="text-text-primary text-[15px]">
-                      {person.nickname}
-                    </span>
-                    {person.observations.length > 0 && (
-                      <span className="text-text-muted text-xs truncate max-w-[200px]">
-                        {person.observations.map((o) => o.content).join("、")}
+            {/* 人物リスト */}
+            {persons.map((person) => {
+              const div = divinations[person.id];
+              return (
+                <div
+                  key={person.id}
+                  className="flex items-center px-4 py-4 border-b border-border-subtle hover:bg-surface-hover transition-colors duration-200 group"
+                >
+                  {/* 名前・観察メモ */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-3">
+                      <span className="text-text-primary text-[15px]">
+                        {person.nickname}
                       </span>
-                    )}
+                      {person.observations.length > 0 && (
+                        <span className="text-text-muted text-xs truncate max-w-[200px]">
+                          {person.observations.map((o) => o.content).join("、")}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* 関係性タグ */}
+                  <div className="w-24 text-center">
+                    <span className="inline-block px-2 py-0.5 border border-border-subtle rounded-[4px] text-[11px] text-text-secondary">
+                      {person.relationship}
+                    </span>
+                  </div>
+
+                  {/* 簡易スコア */}
+                  <div className="w-20 text-center text-xs text-gold">
+                    {div ? "★".repeat(Math.min(5, Math.max(1, Math.ceil((div.numerology || 3) / 2)))) : "—"}
+                  </div>
+
+                  {/* アクション */}
+                  <div className="w-16 flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => handleDelete(person.id, person.nickname)}
+                      className="text-text-muted hover:text-danger transition-colors text-xs opacity-0 group-hover:opacity-100"
+                    >
+                      削除
+                    </button>
+                    <span className="text-gold opacity-0 group-hover:opacity-100 transition-opacity">
+                      &rarr;
+                    </span>
                   </div>
                 </div>
+              );
+            })}
+          </div>
 
-                {/* 関係性タグ */}
-                <div className="w-24 text-center">
-                  <span className="inline-block px-2 py-0.5 border border-border-subtle rounded-[4px] text-[11px] text-text-secondary">
-                    {person.relationship}
-                  </span>
-                </div>
+          {/* === モバイル: カード形式 === */}
+          <div className="md:hidden space-y-3">
+            {persons.map((person) => {
+              const div = divinations[person.id];
+              return (
+                <div
+                  key={person.id}
+                  className="card !p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    {/* 左: 名前 + 関係性 */}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-text-primary text-[15px] font-medium">
+                          {person.nickname}
+                        </span>
+                        <span className="inline-block px-1.5 py-0.5 border border-border-subtle rounded-[3px] text-[10px] text-text-secondary shrink-0">
+                          {person.relationship}
+                        </span>
+                      </div>
 
-                {/* 簡易スコア（占術データから星表示） */}
-                <div className="w-20 text-center text-xs text-gold">
-                  {div ? "★".repeat(Math.min(5, Math.max(1, Math.ceil((div.numerology || 3) / 2)))) : "—"}
-                </div>
+                      {/* 観察メモ（1行にトランケート） */}
+                      {person.observations.length > 0 && (
+                        <p className="text-text-muted text-xs truncate">
+                          {person.observations.map((o) => o.content).join("、")}
+                        </p>
+                      )}
+                    </div>
 
-                {/* アクション */}
-                <div className="w-16 flex items-center justify-end gap-2">
-                  <button
-                    onClick={() => handleDelete(person.id, person.nickname)}
-                    className="text-text-muted hover:text-danger transition-colors text-xs opacity-0 group-hover:opacity-100"
-                  >
-                    削除
-                  </button>
-                  <span className="text-gold opacity-0 group-hover:opacity-100 transition-opacity">
-                    &rarr;
-                  </span>
+                    {/* 右: スコア + 削除 */}
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-xs text-gold">
+                        {div ? "★".repeat(Math.min(5, Math.max(1, Math.ceil((div.numerology || 3) / 2)))) : "—"}
+                      </span>
+                      <button
+                        onClick={() => handleDelete(person.id, person.nickname)}
+                        className="text-text-muted hover:text-danger transition-colors text-xs"
+                      >
+                        &#x2715;
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </>
       )}
     </div>
   );

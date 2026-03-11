@@ -8,6 +8,7 @@ import {
   BLOOD_TYPE_OPTIONS,
   BIRTH_ORDER_OPTIONS,
 } from "@/lib/types";
+import { BirthDateSelect } from "@/components/birth-date-select";
 
 export default function NewPersonPage() {
   const router = useRouter();
@@ -16,8 +17,9 @@ export default function NewPersonPage() {
   // フォーム状態
   const [nickname, setNickname] = useState("");
   const [relationship, setRelationship] = useState<string>(RELATIONSHIP_TYPES[0]);
-  const [birthDate, setBirthDate] = useState("");
   const [birthYear, setBirthYear] = useState("");
+  const [birthMonth, setBirthMonth] = useState("");
+  const [birthDay, setBirthDay] = useState("");
   const [gender, setGender] = useState("");
   const [bloodType, setBloodType] = useState("");
   const [birthCountry, setBirthCountry] = useState("");
@@ -43,6 +45,15 @@ export default function NewPersonPage() {
     setObservations((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // 年月日からbirthDate文字列（YYYY-MM-DD）を生成
+  const buildBirthDate = (): string | null => {
+    if (!birthYear || !birthMonth || !birthDay) return null;
+    const y = birthYear.padStart(4, "0");
+    const m = birthMonth.padStart(2, "0");
+    const d = birthDay.padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
   // フォーム送信
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,6 +61,7 @@ export default function NewPersonPage() {
 
     setSubmitting(true);
     try {
+      const birthDate = buildBirthDate();
       const res = await fetch("/api/persons", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -122,32 +134,18 @@ export default function NewPersonPage() {
 
         <hr className="divider" />
 
-        {/* 生年月日（任意） */}
+        {/* 生年月日（任意）- 年/月/日 3分割 */}
         <div className="py-4">
           <label className="block text-xs text-text-secondary mb-2 tracking-wide">
             生年月日 <span className="text-text-muted">(任意)</span>
           </label>
-          <input
-            type="date"
-            value={birthDate}
-            onChange={(e) => setBirthDate(e.target.value)}
-            className="input-underline"
-          />
-        </div>
-
-        {/* 生まれた年（任意） */}
-        <div className="py-4">
-          <label className="block text-xs text-text-secondary mb-2 tracking-wide">
-            生まれた年 <span className="text-text-muted">(任意)</span>
-          </label>
-          <input
-            type="number"
-            value={birthYear}
-            onChange={(e) => setBirthYear(e.target.value)}
-            placeholder="例: 1985"
-            min="1900"
-            max="2025"
-            className="input-underline"
+          <BirthDateSelect
+            birthYear={birthYear}
+            birthMonth={birthMonth}
+            birthDay={birthDay}
+            onYearChange={setBirthYear}
+            onMonthChange={setBirthMonth}
+            onDayChange={setBirthDay}
           />
         </div>
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import type { DivinationResult } from "@/lib/types";
+import { BirthDateSelect } from "@/components/birth-date-select";
 
 // 性別の選択肢（内部値→表示ラベル）
 const GENDER_OPTIONS = [
@@ -21,6 +22,18 @@ const BIRTH_ORDER_OPTIONS = [
   { value: "only", label: "一人っ子" },
 ] as const;
 
+// birthDate (YYYY-MM-DD) を年・月・日に分解
+function parseBirthDate(dateStr: string | null): { year: string; month: string; day: string } {
+  if (!dateStr) return { year: "", month: "", day: "" };
+  const parts = dateStr.split("-");
+  if (parts.length !== 3) return { year: "", month: "", day: "" };
+  return {
+    year: String(parseInt(parts[0])),
+    month: String(parseInt(parts[1])),
+    day: String(parseInt(parts[2])),
+  };
+}
+
 export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -28,8 +41,9 @@ export default function ProfilePage() {
 
   // フォーム状態
   const [nickname, setNickname] = useState("自分");
-  const [birthDate, setBirthDate] = useState("");
   const [birthYear, setBirthYear] = useState("");
+  const [birthMonth, setBirthMonth] = useState("");
+  const [birthDay, setBirthDay] = useState("");
   const [gender, setGender] = useState("");
   const [bloodType, setBloodType] = useState("");
   const [birthOrder, setBirthOrder] = useState("");
@@ -40,6 +54,15 @@ export default function ProfilePage() {
   // 占術プレビュー
   const [divPreview, setDivPreview] = useState<DivinationResult | null>(null);
 
+  // 年月日からbirthDate文字列を生成
+  const buildBirthDate = (): string | null => {
+    if (!birthYear || !birthMonth || !birthDay) return null;
+    const y = birthYear.padStart(4, "0");
+    const m = birthMonth.padStart(2, "0");
+    const d = birthDay.padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
   // プロフィール読み込み
   useEffect(() => {
     fetch("/api/profile")
@@ -47,8 +70,15 @@ export default function ProfilePage() {
       .then((data) => {
         if (data.exists) {
           setNickname(data.nickname || "自分");
-          setBirthDate(data.birthDate || "");
-          setBirthYear(data.birthYear ? String(data.birthYear) : "");
+          // birthDateを年月日に分解
+          const parsed = parseBirthDate(data.birthDate || null);
+          if (parsed.year) {
+            setBirthYear(parsed.year);
+            setBirthMonth(parsed.month);
+            setBirthDay(parsed.day);
+          } else if (data.birthYear) {
+            setBirthYear(String(data.birthYear));
+          }
           setGender(data.gender || "");
           setBloodType(data.bloodType || "");
           setBirthOrder(data.birthOrder || "");
@@ -67,6 +97,7 @@ export default function ProfilePage() {
   }, []);
 
   // 占術プレビューの更新
+  const birthDate = buildBirthDate();
   const updateDivPreview = useCallback(async () => {
     if (!birthDate && !birthYear) {
       setDivPreview(null);
@@ -116,7 +147,7 @@ export default function ProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           nickname: nickname.trim(),
-          birthDate: birthDate || null,
+          birthDate: buildBirthDate() || null,
           birthYear: birthYear || null,
           gender: gender || null,
           bloodType: bloodType || null,
@@ -149,7 +180,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="flex gap-10">
+    <div className="flex flex-col md:flex-row gap-10">
       {/* 左: フォーム */}
       <div className="flex-1 max-w-xl">
         <h1 className="font-display text-[32px] font-light text-gold tracking-wide mb-8">
@@ -172,32 +203,18 @@ export default function ProfilePage() {
             />
           </div>
 
-          {/* 生年月日 */}
+          {/* 生年月日 - 年/月/日 3分割 */}
           <div className="py-4">
             <label className="block text-xs text-text-secondary mb-2 tracking-wide">
               生年月日 <span className="text-text-muted">(任意)</span>
             </label>
-            <input
-              type="date"
-              value={birthDate}
-              onChange={(e) => setBirthDate(e.target.value)}
-              className="input-underline"
-            />
-          </div>
-
-          {/* 生まれた年 */}
-          <div className="py-4">
-            <label className="block text-xs text-text-secondary mb-2 tracking-wide">
-              生まれた年 <span className="text-text-muted">(任意)</span>
-            </label>
-            <input
-              type="number"
-              value={birthYear}
-              onChange={(e) => setBirthYear(e.target.value)}
-              placeholder="例: 1985"
-              min="1900"
-              max="2025"
-              className="input-underline"
+            <BirthDateSelect
+              birthYear={birthYear}
+              birthMonth={birthMonth}
+              birthDay={birthDay}
+              onYearChange={setBirthYear}
+              onMonthChange={setBirthMonth}
+              onDayChange={setBirthDay}
             />
           </div>
 
@@ -345,8 +362,8 @@ export default function ProfilePage() {
 
       {/* 右: 占術プレビュー */}
       {divPreview && (
-        <div className="w-64 shrink-0 pt-[72px]">
-          <div className="card sticky top-10">
+        <div className="w-full md:w-64 md:shrink-0 md:pt-[72px]">
+          <div className="card md:sticky md:top-10">
             <h3 className="text-xs text-text-muted uppercase font-display tracking-widest mb-4">
               Divination Preview
             </h3>
