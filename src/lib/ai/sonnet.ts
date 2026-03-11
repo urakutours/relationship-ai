@@ -1,12 +1,12 @@
 // Sonnet（ディープ相談）呼び出しモジュール
 // 用途: 具体的なアクションプランの生成
 
-import Anthropic from "@anthropic-ai/sdk";
 import {
   DIVINATION_SYSTEM_PROMPT,
   SONNET_CONSULT_FREE_INSTRUCTION,
   SONNET_CONSULT_PREMIUM_INSTRUCTION,
 } from "./prompts";
+import { getClient } from "./client";
 import { calculateCost } from "@/lib/cost-tracker";
 import type { CostInfo, ConsultPayload } from "@/lib/types";
 
@@ -17,18 +17,6 @@ const TOKEN_LIMITS = {
   FREE: 600,
   PREMIUM: 1200,
 } as const;
-
-// Anthropicクライアント（シングルトン）
-let client: Anthropic | null = null;
-
-function getClient(): Anthropic {
-  if (!client) {
-    client = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-  }
-  return client;
-}
 
 /** ディープ相談の結果型 */
 export interface ConsultResult {

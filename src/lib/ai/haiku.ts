@@ -1,29 +1,17 @@
 // Haiku（軽量AI）呼び出しモジュール
 // 用途: 基本的な相性スコアと一言コメント、バイオリズムアドバイス
 
-import Anthropic from "@anthropic-ai/sdk";
 import {
   DIVINATION_SYSTEM_PROMPT,
   HAIKU_COMPATIBILITY_INSTRUCTION,
   HAIKU_BIORHYTHM_INSTRUCTION,
 } from "./prompts";
+import { getClient } from "./client";
 import { calculateCost } from "@/lib/cost-tracker";
 import type { CostInfo, DivinationResult } from "@/lib/types";
 
 const HAIKU_MODEL = "claude-haiku-4-5-20251001";
 const MAX_TOKENS = 200;
-
-// Anthropicクライアント（シングルトン）
-let client: Anthropic | null = null;
-
-function getClient(): Anthropic {
-  if (!client) {
-    client = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-  }
-  return client;
-}
 
 /** 相性スコアの結果型 */
 export interface CompatibilityResult {
