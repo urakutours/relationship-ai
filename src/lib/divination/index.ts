@@ -28,16 +28,26 @@ export {
 } from "./wuxing";
 
 /**
- * 人物の情報から全占術を一括計算する
+ * 占術計算の共通入力型
+ * Person と UserProfile の両方から使えるようにする
+ */
+export interface DivinationInput {
+  birthDate?: string | null; // YYYY-MM-DD形式
+  birthYear?: number | null;
+  birthCountry?: string | null;
+}
+
+/**
+ * 占術プロフィールを一括計算する共通関数
+ * Person・UserProfile の両方から呼ばれる
  *
- * @param birthDate YYYY-MM-DD形式の生年月日（null可）
- * @param birthYear 生まれた年（null可、birthDateがない場合のフォールバック）
+ * @param input 生年月日・生まれ年・出身国
  * @returns 全占術の計算結果
  */
-export function calculateAllDivinations(
-  birthDate: string | null,
-  birthYear: number | null
-): DivinationResult {
+export function calcDivinationProfile(input: DivinationInput): DivinationResult {
+  const birthDate = input.birthDate ?? null;
+  const birthYear = input.birthYear ?? null;
+
   const solarSign = calculateSolarSign(birthDate);
   const numerology = calculateNumerology(birthDate);
   const kyusei = calculateKyuseiFromBirth(birthDate, birthYear);
@@ -52,4 +62,18 @@ export function calculateAllDivinations(
     dayPillar: dayPillarResult?.pillar ?? null,
     wuxingProfile,
   };
+}
+
+/**
+ * 人物の情報から全占術を一括計算する（後方互換ラッパー）
+ *
+ * @param birthDate YYYY-MM-DD形式の生年月日（null可）
+ * @param birthYear 生まれた年（null可、birthDateがない場合のフォールバック）
+ * @returns 全占術の計算結果
+ */
+export function calculateAllDivinations(
+  birthDate: string | null,
+  birthYear: number | null
+): DivinationResult {
+  return calcDivinationProfile({ birthDate, birthYear });
 }

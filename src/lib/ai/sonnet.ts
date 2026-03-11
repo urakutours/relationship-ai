@@ -43,7 +43,7 @@ export async function generateConsultation(
   payload: ConsultPayload
 ): Promise<ConsultResult> {
   const anthropic = getClient();
-  const { userType, target, consultationContext } = payload;
+  const { userType, myself, target, consultationContext } = payload;
 
   const maxTokens = TOKEN_LIMITS[userType];
   const instruction =
@@ -51,9 +51,29 @@ export async function generateConsultation(
       ? SONNET_CONSULT_PREMIUM_INSTRUCTION
       : SONNET_CONSULT_FREE_INSTRUCTION;
 
+  // myself（自分）セクションの構築
+  let myselfSection = "";
+  if (myself) {
+    const myselfDiv = myself.divination;
+    myselfSection = `
+## myself（相談者自身）
+ニックネーム: ${myself.nickname}
+特性メモ: ${myself.observedTraits.length > 0 ? myself.observedTraits.join("、") : "なし"}
+西洋星座: ${myselfDiv?.solarSign ?? "不明"}
+数秘術（誕生数）: ${myselfDiv?.numerology ?? "不明"}
+九星: ${myselfDiv?.kyusei ?? "不明"}
+日干: ${myselfDiv?.dayKan ?? "不明"}
+五行バランス: ${
+      myselfDiv?.wuxingProfile
+        ? `木${myselfDiv.wuxingProfile.wood} 火${myselfDiv.wuxingProfile.fire} 土${myselfDiv.wuxingProfile.earth} 金${myselfDiv.wuxingProfile.metal} 水${myselfDiv.wuxingProfile.water}`
+        : "不明"
+    }
+`;
+  }
+
   // ユーザーメッセージの構築
-  const userMessage = `
-## 相手の情報
+  const userMessage = `${myselfSection}
+## target（相談相手）
 ニックネーム: ${target.nickname}
 関係性: ${target.relationship}
 観察メモ: ${target.observedTraits.length > 0 ? target.observedTraits.join("、") : "なし"}
@@ -67,7 +87,7 @@ export async function generateConsultation(
       : "不明"
   }
 
-## 相談内容
+## consultationContext（相談内容）
 ${consultationContext}
 `;
 

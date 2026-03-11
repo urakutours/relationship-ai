@@ -5,7 +5,7 @@ import { calculateNumerology } from "../numerology";
 import { calculateKyusei, calculateKyuseiFromBirth } from "../kyusei";
 import { calculateDayPillar } from "../shichusuimei";
 import { calculateWuxingProfile, getDominantElement } from "../wuxing";
-import { calculateAllDivinations } from "../index";
+import { calculateAllDivinations, calcDivinationProfile } from "../index";
 
 describe("西洋星座計算", () => {
   it("牡羊座を正しく判定する（3月21日〜4月19日）", () => {
@@ -198,5 +198,34 @@ describe("全占術一括計算", () => {
     expect(result.dayKan).toBeNull();
     expect(result.dayPillar).toBeNull();
     expect(result.wuxingProfile).toBeNull();
+  });
+});
+
+describe("共通関数 calcDivinationProfile", () => {
+  it("DivinationInput形式で同じ結果を返す", () => {
+    const result = calcDivinationProfile({ birthDate: "1990-05-23" });
+    expect(result.solarSign).toBe("双子座");
+    expect(result.numerology).toBe(2);
+    expect(result.kyusei).toBe("一白水星");
+    expect(result.dayKan).not.toBeNull();
+  });
+
+  it("birthYearのみでも九星が計算される", () => {
+    const result = calcDivinationProfile({ birthYear: 1985 });
+    expect(result.kyusei).toBe("六白金星");
+    expect(result.solarSign).toBeNull();
+  });
+
+  it("空入力でもエラーにならない", () => {
+    const result = calcDivinationProfile({});
+    expect(result.solarSign).toBeNull();
+    expect(result.kyusei).toBeNull();
+    expect(result.wuxingProfile).toBeNull();
+  });
+
+  it("calculateAllDivinationsと同じ結果を返す（後方互換）", () => {
+    const a = calculateAllDivinations("1975-03-15", null);
+    const b = calcDivinationProfile({ birthDate: "1975-03-15" });
+    expect(a).toEqual(b);
   });
 });

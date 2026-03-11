@@ -27,6 +27,22 @@ model Person {
   observations   Observation[]
 }
 
+// 自分のプロフィール（常に1件のみ、id=1で固定）
+model UserProfile {
+  id            Int       @id @default(1)
+  nickname      String    @default("自分")
+  birthDate     String?   // YYYY-MM-DD形式（任意）
+  birthYear     Int?      // 生まれた年（任意）
+  gender        String?   // male / female / other
+  bloodType     String?   // A / B / O / AB
+  birthOrder    String?   // first / middle / last / only
+  birthCountry  String?   @default("JP")
+  mbti          String?   // 例: "INTJ"
+  memoTags      String?   // JSON文字列として保存（自分の特性メモ配列）
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
 // 観察メモ
 model Observation {
   id        String   @id @default(cuid())

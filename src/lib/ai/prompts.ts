@@ -70,18 +70,31 @@ ${buildDayKanText()}
 `;
 
 /** Haiku用の追加指示（相性スコア用） */
-export const HAIKU_COMPATIBILITY_INSTRUCTION = `与えられた2人の情報から、100点満点の相性スコアと一言コメント（30字以内）を生成してください。
+export const HAIKU_COMPATIBILITY_INSTRUCTION = `与えられた2人の情報から、五行の相性・相克関係やその他の占術的特性を考慮して、
+100点満点の相性スコアと一言コメント（30字以内）を生成してください。
 出力形式:
 {"score": 数値, "comment": "一言コメント"}
 JSON以外は出力しないでください。`;
 
 /** Sonnet用の追加指示（ディープ相談用・FREE） */
-export const SONNET_CONSULT_FREE_INSTRUCTION = `与えられた相談内容に対して、具体的なアクションプランを3つ提案してください。
+export const SONNET_CONSULT_FREE_INSTRUCTION = `## 入力データの構造
+- myself: 相談者自身の属性・特性（未登録の場合は省略）
+- target: 相談相手の属性・特性
+- consultationContext: 今回の相談内容
+
+myselfとtargetの関係性（エネルギーの相性・相克など）を考慮した上で、
+myselfが取るべき具体的なアクションプランを3つ提案してください。
 各プランは40字以内で、番号付きで出力してください。
 余計な説明は不要です。`;
 
 /** Sonnet用の追加指示（ディープ相談用・PREMIUM） */
-export const SONNET_CONSULT_PREMIUM_INSTRUCTION = `与えられた相談内容に対して、具体的なアクションプランを3つ提案してください。
+export const SONNET_CONSULT_PREMIUM_INSTRUCTION = `## 入力データの構造
+- myself: 相談者自身の属性・特性（未登録の場合は省略）
+- target: 相談相手の属性・特性
+- consultationContext: 今回の相談内容
+
+myselfとtargetの関係性（エネルギーの相性・相克など）を考慮した上で、
+myselfが取るべき具体的なアクションプランを3つ提案してください。
 各プランは以下の形式で出力してください:
 1. 【アクション名】（40字以内）
    - なぜ効果的か（50字以内）

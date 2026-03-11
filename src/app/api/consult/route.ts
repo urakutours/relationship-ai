@@ -1,9 +1,9 @@
 // ディープ相談API（Sonnet呼び出し）
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { calculateAllDivinations } from "@/lib/divination";
+import { calculateAllDivinations, calcDivinationProfile } from "@/lib/divination";
 import { generateConsultation } from "@/lib/ai/sonnet";
-import type { ConsultPayload } from "@/lib/types";
+import type { ConsultPayload, MyselfInfo } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,11 +16,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 人物情報を取得
-    const person = await prisma.person.findUnique({
-      where: { id: personId },
-      include: { observations: true },
-    });
+    // 人物情報とユーザープロフィールを並行取得
+    const [person, userProfile] = await Promise.all([
+      prisma.person.findUnique({
+        where: { id: personId },
+        include: { observations: true },
+      }),
+      prisma.userProfile.findUnique({
+        where: { id: 1 },
+      }),
+    ]);
 
     if (!person) {
       return NextResponse.json(
@@ -35,9 +40,30 @@ export async function POST(request: NextRequest) {
       person.birthYear
     );
 
+    // 自分のプロフィール情報を構築（登録済みの場合のみ）
+    let myself: MyselfInfo | null = null;
+    if (userProfile) {
+      const myselfDiv = calcDivinationProfile({
+        birthDate: userProfile.birthDate,
+        birthYear: userProfile.birthYear,
+      });
+      let memoTags: string[] = [];
+      try {
+        memoTags = JSON.parse(userProfile.memoTags || "[]");
+      } catch {
+        memoTags = [];
+      }
+      myself = {
+        nickname: userProfile.nickname,
+        observedTraits: memoTags,
+        divination: myselfDiv,
+      };
+    }
+
     // ペイロード構築
     const payload: ConsultPayload = {
       userType: userType === "PREMIUM" ? "PREMIUM" : "FREE",
+      myself,
       target: {
         nickname: person.nickname,
         relationship: person.relationship,

@@ -14,6 +14,15 @@ export default function HomePage() {
   const [costInfo, setCostInfo] = useState<CostInfo | null>(null);
   // セッション中のキャッシュ
   const [cachedWeather, setCachedWeather] = useState<string | null>(null);
+  // プロフィール未登録チェック
+  const [profileExists, setProfileExists] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch("/api/profile")
+      .then((res) => res.json())
+      .then((data) => setProfileExists(data.exists ?? false))
+      .catch(() => setProfileExists(false));
+  }, []);
 
   // 天気が変わったらキャッシュをクリア
   useEffect(() => {
@@ -59,6 +68,21 @@ export default function HomePage() {
           東洋・西洋の占術と行動観察を統合し、人間関係の具体的なアクションプランを提案します。
         </p>
       </div>
+
+      {/* プロフィール未登録バナー */}
+      {profileExists === false && (
+        <Link
+          href="/profile"
+          className="block bg-amber-50 border border-amber-200 rounded-lg p-4 hover:bg-amber-100 transition-colors"
+        >
+          <p className="text-amber-800 font-medium">
+            まず自分のプロフィールを登録してください
+          </p>
+          <p className="text-amber-600 text-sm mt-1">
+            相性分析やディープ相談の精度が向上します。クリックして設定
+          </p>
+        </Link>
+      )}
 
       {/* 今日のバイオリズム */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

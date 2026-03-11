@@ -83,9 +83,17 @@ export interface WuxingProfile {
   water: number; // 水
 }
 
+// 自分のプロフィール情報（AI送信用）
+export interface MyselfInfo {
+  nickname: string;
+  observedTraits: string[];
+  divination: DivinationResult | null;
+}
+
 // AI相談ペイロード
 export interface ConsultPayload {
   userType: "FREE" | "PREMIUM";
+  myself: MyselfInfo | null; // 自分のプロフィール（未登録時はnull）
   target: {
     nickname: string;
     relationship: string;

@@ -52,6 +52,12 @@ export default function RootLayout({
             >
               ディープ相談
             </Link>
+            <Link
+              href="/profile"
+              className="text-sm text-gray-600 hover:text-indigo-600 transition-colors ml-auto"
+            >
+              自分のプロフィール
+            </Link>
           </div>
         </nav>
         <main className="max-w-4xl mx-auto px-4 py-6">{children}</main>
