@@ -13,7 +13,7 @@ export async function GET(
   try {
     const person = await prisma.person.findUnique({
       where: { id },
-      include: { observations: true },
+      include: { observations: true, labels: { include: { label: true } } },
     });
     if (!person) {
       return NextResponse.json({ error: "人物が見つかりません" }, { status: 404 });
@@ -61,7 +61,7 @@ export async function PATCH(
     const person = await prisma.person.update({
       where: { id },
       data: updateData,
-      include: { observations: true },
+      include: { observations: true, labels: { include: { label: true } } },
     });
 
     // 観察メモの追加・削除
@@ -81,7 +81,7 @@ export async function PATCH(
     // 最新データを再取得
     const updated = await prisma.person.findUnique({
       where: { id },
-      include: { observations: true },
+      include: { observations: true, labels: { include: { label: true } } },
     });
 
     // 再分析が必要かどうかのフラグ

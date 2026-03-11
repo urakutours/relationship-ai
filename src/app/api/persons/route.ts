@@ -6,8 +6,14 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   try {
     const persons = await prisma.person.findMany({
-      include: { observations: true },
-      orderBy: { updatedAt: "desc" },
+      include: {
+        observations: true,
+        labels: { include: { label: true } },
+      },
+      orderBy: [
+        { sortOrder: { sort: "asc", nulls: "last" } },
+        { updatedAt: "desc" },
+      ],
     });
     return NextResponse.json(persons);
   } catch (error) {

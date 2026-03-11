@@ -31,6 +31,10 @@ model Person {
   quickNoteUpdatedAt  DateTime?
   deepNoteUpdatedAt   DateTime?
 
+  // ラベル・並び替え
+  labels      PersonLabel[]
+  sortOrder   Int?           // 並び替え順序（nullの場合はid順）
+
   // 相談履歴
   consultations  ConsultationLog[]
 
@@ -77,4 +81,23 @@ model Observation {
   personId  String
   person    Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
+}
+
+// ラベル
+model Label {
+  id        Int           @id @default(autoincrement())
+  name      String        // ラベル名（例：「重要」「要注意」「VIP」）
+  color     String        @default("#7ec8c0") // カラーコード
+  createdAt DateTime      @default(now())
+  persons   PersonLabel[]
+}
+
+// 人物×ラベル中間テーブル
+model PersonLabel {
+  personId  String
+  labelId   Int
+  person    Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+  label     Label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([personId, labelId])
 }
