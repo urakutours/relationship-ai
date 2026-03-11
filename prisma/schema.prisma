@@ -1,0 +1,37 @@
+// 人間関係ナビゲーションアプリのデータベーススキーマ
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 人物（パーソナルCRM）
+model Person {
+  id             String   @id @default(cuid())
+  nickname       String
+  relationship   String   // 上司/部下/配偶者/クライアント/友人
+  birthDate      String?  // YYYY-MM-DD形式（任意）
+  birthYear      Int?     // 生まれた年（任意）
+  gender         String?  // 男性/女性/その他
+  bloodType      String?  // A/B/O/AB
+  birthCountry   String?  // 出身国
+  birthOrder     String?  // 長子/中間/末子/一人っ子/不明
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // 観察メモ（複数追加可）
+  observations   Observation[]
+}
+
+// 観察メモ
+model Observation {
+  id        String   @id @default(cuid())
+  content   String
+  personId  String
+  person    Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+}
