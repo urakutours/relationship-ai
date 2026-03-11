@@ -1,9 +1,18 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { Suspense, useEffect, useState, useRef, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import type { PersonData, CostInfo } from "@/lib/types";
 
 export default function ConsultPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-16"><p className="text-text-muted text-sm">読み込み中...</p></div>}>
+      <ConsultContent />
+    </Suspense>
+  );
+}
+
+function ConsultContent() {
   const [persons, setPersons] = useState<PersonData[]>([]);
   const [selectedPersonId, setSelectedPersonId] = useState("");
   const [consultationContext, setConsultationContext] = useState("");
@@ -22,13 +31,21 @@ export default function ConsultPage() {
   const [countdown, setCountdown] = useState(5);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // 人物一覧を取得
+  const searchParams = useSearchParams();
+
+  // 人物一覧を取得 + URLパラメータで事前選択
   useEffect(() => {
     fetch("/api/persons")
       .then((res) => res.json())
-      .then((data) => setPersons(data))
+      .then((data) => {
+        setPersons(data);
+        const preselect = searchParams.get("personId");
+        if (preselect && data.some((p: PersonData) => p.id === preselect)) {
+          setSelectedPersonId(preselect);
+        }
+      })
       .catch(console.error);
-  }, []);
+  }, [searchParams]);
 
   // カウントダウン完了後に深掘り相談を実行
   const startDeepConsult = useCallback(async () => {

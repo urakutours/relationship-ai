@@ -60,6 +60,12 @@ export interface PersonData {
   birthCountry: string | null;
   birthOrder: string | null;
   observations: ObservationData[];
+  // AI生成ノート
+  quickNote: string | null;
+  deepNote: string | null;
+  compatibilityScore: number | null;
+  quickNoteUpdatedAt: string | null;
+  deepNoteUpdatedAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

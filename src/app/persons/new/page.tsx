@@ -79,7 +79,8 @@ export default function NewPersonPage() {
       });
 
       if (res.ok) {
-        router.push("/persons");
+        const created = await res.json();
+        router.push(`/persons/${created.id}`);
       } else {
         const data = await res.json();
         alert(data.error || "登録に失敗しました");

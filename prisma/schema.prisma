@@ -23,6 +23,13 @@ model Person {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  // AI生成ノート
+  quickNote           String?    // Haiku生成のサマリーノート
+  deepNote            String?    // Sonnet生成の詳細ノート
+  compatibilityScore  Int?       // 自分との相性スコア（1〜100）
+  quickNoteUpdatedAt  DateTime?
+  deepNoteUpdatedAt   DateTime?
+
   // 観察メモ（複数追加可）
   observations   Observation[]
 }

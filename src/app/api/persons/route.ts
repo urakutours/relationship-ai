@@ -62,6 +62,11 @@ export async function POST(request: NextRequest) {
       include: { observations: true },
     });
 
+    // 保存成功後にバックグラウンドで分析を開始
+    const baseUrl = request.nextUrl.origin;
+    fetch(`${baseUrl}/api/persons/${person.id}/analyze`, { method: "POST" })
+      .catch((err) => console.error("バックグラウンド分析エラー:", err));
+
     return NextResponse.json(person, { status: 201 });
   } catch (error) {
     console.error("人物登録エラー:", error);
