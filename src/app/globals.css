@@ -141,3 +141,69 @@ select.input-underline option {
   background: var(--color-text-muted);
   border-radius: 3px;
 }
+
+/* ===== Markdown Body Styles ===== */
+.markdown-body h2 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 1.1rem;
+  color: #c9a84c;
+  border-bottom: 1px solid rgba(201, 168, 76, 0.3);
+  padding-bottom: 4px;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+.markdown-body h3 {
+  font-size: 0.95rem;
+  color: #7ec8c0;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+.markdown-body p {
+  line-height: 1.8;
+  color: #d4d4d8;
+  margin-bottom: 0.75rem;
+}
+.markdown-body ul {
+  list-style: none;
+  padding-left: 0;
+}
+.markdown-body ul li {
+  padding-left: 1.25rem;
+  position: relative;
+  line-height: 1.8;
+  color: #d4d4d8;
+  margin-bottom: 0.4rem;
+}
+.markdown-body ul li::before {
+  content: "▸";
+  color: #c9a84c;
+  position: absolute;
+  left: 0;
+}
+.markdown-body ol {
+  counter-reset: item;
+  padding-left: 0;
+}
+.markdown-body ol li {
+  counter-increment: item;
+  padding-left: 1.75rem;
+  position: relative;
+  line-height: 1.8;
+  color: #d4d4d8;
+  margin-bottom: 0.4rem;
+}
+.markdown-body ol li::before {
+  content: counter(item) ".";
+  color: #c9a84c;
+  position: absolute;
+  left: 0;
+  font-family: 'Cormorant Garamond', serif;
+}
+.markdown-body hr {
+  border: none;
+  border-top: 1px solid rgba(201, 168, 76, 0.2);
+  margin: 1rem 0;
+}
+.markdown-body strong {
+  color: #e8e4dc;
+}

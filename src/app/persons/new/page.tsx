@@ -135,20 +135,6 @@ export default function NewPersonPage() {
           </select>
         </div>
 
-        {/* 家族構成・生活背景（任意） */}
-        <div className="py-4">
-          <label className="block text-xs text-text-secondary mb-2 tracking-wide">
-            家族構成・生活背景 <span className="text-text-muted">(任意)</span>
-          </label>
-          <textarea
-            value={personalContext}
-            onChange={(e) => setPersonalContext(e.target.value)}
-            placeholder="例: 既婚・子供2人、最近転職したばかり"
-            rows={2}
-            className="input-underline resize-none"
-          />
-        </div>
-
         <hr className="divider" />
 
         {/* 生年月日（任意）- 年/月/日 3分割 */}
@@ -237,6 +223,26 @@ export default function NewPersonPage() {
               </option>
             ))}
           </select>
+        </div>
+
+        <hr className="divider" />
+
+        {/* 生活背景・家族構成（任意） */}
+        <div className="py-4">
+          <label className="block text-xs text-text-secondary mb-2 tracking-wide">
+            生活背景・家族構成 <span className="text-text-muted">(任意)</span>
+          </label>
+          <textarea
+            value={personalContext}
+            onChange={(e) => setPersonalContext(e.target.value)}
+            rows={3}
+            className="input-underline resize-none"
+          />
+          <div className="mt-2 space-y-0.5 text-[11px] text-text-muted">
+            <p>例：既婚、子供2人。単身赴任中。</p>
+            <p>例：パートナーあり、同棲中。仕事最優先の価値観。</p>
+            <p>例：独身、親と同居。週末は趣味に集中したい。</p>
+          </div>
         </div>
 
         <hr className="divider" />

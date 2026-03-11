@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
+import ReactMarkdown from "react-markdown";
 import type { DivinationResult, CostInfo } from "@/lib/types";
 import { BirthDateSelect } from "@/components/birth-date-select";
 
@@ -25,17 +26,6 @@ function parseBirthDate(dateStr: string | null): { year: string; month: string; 
   const parts = dateStr.split("-");
   if (parts.length !== 3) return { year: "", month: "", day: "" };
   return { year: String(parseInt(parts[0])), month: String(parseInt(parts[1])), day: String(parseInt(parts[2])) };
-}
-
-/** Markdownをシンプルに表示用HTMLに変換 */
-function renderMarkdown(md: string): string {
-  return md
-    .replace(/^## (.+)$/gm, '<h3 class="text-gold font-display text-lg tracking-wide mt-5 mb-2">$1</h3>')
-    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-text-primary">$1</strong>')
-    .replace(/^(\d+)\. (.+)$/gm, '<div class="flex gap-2 mb-1"><span class="text-gold shrink-0">$1.</span><span>$2</span></div>')
-    .replace(/^- (.+)$/gm, '<div class="flex gap-2 mb-1"><span class="text-gold shrink-0">•</span><span>$1</span></div>')
-    .replace(/\n\n/g, '<div class="h-3"></div>')
-    .replace(/\n/g, "<br/>");
 }
 
 export default function ProfilePage() {
@@ -364,7 +354,7 @@ export default function ProfilePage() {
               <span className="text-text-muted text-sm">分析中...</span>
             </div>
           ) : quickNote ? (
-            <div className="text-sm text-text-secondary leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMarkdown(quickNote) }} />
+            <div className="markdown-body text-sm"><ReactMarkdown>{quickNote}</ReactMarkdown></div>
           ) : (
             <div className="text-center py-6">
               <p className="text-text-muted text-sm mb-3">まだ分析が実行されていません</p>
@@ -387,7 +377,7 @@ export default function ProfilePage() {
             </div>
           ) : deepNote ? (
             <>
-              <div className="text-sm text-text-secondary leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMarkdown(deepNote) }} />
+              <div className="markdown-body text-sm"><ReactMarkdown>{deepNote}</ReactMarkdown></div>
               <div className="mt-4 pt-4 border-t border-border-subtle">
                 <button onClick={runDeepAnalysis} className="text-[12px] text-text-secondary hover:text-jade transition-colors">再生成する</button>
               </div>
