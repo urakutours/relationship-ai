@@ -5,7 +5,23 @@ import Link from "next/link";
 import type { CostInfo } from "@/lib/types";
 
 // 天気の選択肢
-const WEATHER_OPTIONS = ["晴れ", "曇り", "雨", "雪", "低気圧"] as const;
+const WEATHER_OPTIONS = [
+  { value: "晴れ", icon: "\u2600\uFE0F" },
+  { value: "曇り", icon: "\u2601\uFE0F" },
+  { value: "雨", icon: "\uD83C\uDF27\uFE0F" },
+] as const;
+
+// 和暦変換
+function toWareki(date: Date): string {
+  const y = date.getFullYear();
+  const m = date.getMonth() + 1;
+  const d = date.getDate();
+  if (y >= 2019) return `令和${y - 2018}年${m}月${d}日`;
+  if (y >= 1989) return `平成${y - 1988}年${m}月${d}日`;
+  return `${y}年${m}月${d}日`;
+}
+
+const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
 export default function HomePage() {
   const [weather, setWeather] = useState<string>("晴れ");
@@ -16,6 +32,8 @@ export default function HomePage() {
   const [cachedWeather, setCachedWeather] = useState<string | null>(null);
   // プロフィール未登録チェック
   const [profileExists, setProfileExists] = useState<boolean | null>(null);
+
+  const today = new Date();
 
   useEffect(() => {
     fetch("/api/profile")
@@ -59,13 +77,17 @@ export default function HomePage() {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="text-center py-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">
-          人間関係ナビゲーション
-        </h1>
-        <p className="text-gray-600 max-w-lg mx-auto">
-          東洋・西洋の占術と行動観察を統合し、人間関係の具体的なアクションプランを提案します。
+    <div className="space-y-10">
+      {/* 日付表示 */}
+      <div className="text-center py-6">
+        <p className="font-display text-[56px] font-light text-gold leading-none tracking-wide">
+          {today.getMonth() + 1}.{today.getDate()}
+        </p>
+        <p className="font-display text-lg text-text-secondary mt-1">
+          {today.getFullYear()} — {WEEKDAYS[today.getDay()]}曜日
+        </p>
+        <p className="text-xs text-text-muted mt-1">
+          {toWareki(today)}
         </p>
       </div>
 
@@ -73,104 +95,115 @@ export default function HomePage() {
       {profileExists === false && (
         <Link
           href="/profile"
-          className="block bg-amber-50 border border-amber-200 rounded-lg p-4 hover:bg-amber-100 transition-colors"
+          className="block card border-jade-dim hover:border-jade transition-colors duration-300"
         >
-          <p className="text-amber-800 font-medium">
+          <p className="text-jade text-sm font-medium">
             まず自分のプロフィールを登録してください
           </p>
-          <p className="text-amber-600 text-sm mt-1">
-            相性分析やディープ相談の精度が向上します。クリックして設定
+          <p className="text-text-muted text-xs mt-1">
+            相性分析やディープ相談の精度が向上します
           </p>
         </Link>
       )}
 
-      {/* 今日のバイオリズム */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">
-          今日のアドバイス
+      {/* 今日のアドバイス */}
+      <div className="card">
+        <h2 className="font-display text-xl text-gold mb-5 tracking-wide">
+          Today&apos;s Guidance
         </h2>
-        <div className="flex items-end gap-4 mb-4">
-          <div>
-            <label className="block text-sm text-gray-600 mb-1">
-              今日の天気
-            </label>
-            <select
-              value={weather}
-              onChange={(e) => setWeather(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-            >
-              {WEATHER_OPTIONS.map((w) => (
-                <option key={w} value={w}>
-                  {w}
-                </option>
-              ))}
-            </select>
+
+        <div className="flex items-center gap-6 mb-6">
+          {/* 天気選択アイコン */}
+          <div className="flex gap-2">
+            {WEATHER_OPTIONS.map((w) => (
+              <button
+                key={w.value}
+                onClick={() => setWeather(w.value)}
+                className={`
+                  w-10 h-10 rounded-[4px] text-lg flex items-center justify-center
+                  transition-all duration-200 border
+                  ${
+                    weather === w.value
+                      ? "border-gold bg-gold-subtle"
+                      : "border-border-subtle hover:border-gold-dim"
+                  }
+                `}
+              >
+                {w.icon}
+              </button>
+            ))}
           </div>
+
           <button
             onClick={fetchAdvice}
             disabled={loading}
-            className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+            className="btn-ghost"
           >
             {loading ? "生成中..." : "アドバイスを取得"}
           </button>
         </div>
 
+        {/* アドバイス表示 - 巻物風 */}
         {advice && (
-          <div className="bg-indigo-50 rounded-lg p-4">
-            <p className="text-gray-800 leading-relaxed">{advice}</p>
+          <div className="relative">
+            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-gold-dim to-transparent" />
+            <div className="py-5 px-4">
+              <p className="text-text-primary leading-[2] text-[15px]">
+                {advice}
+              </p>
+            </div>
+            <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-gold-dim to-transparent" />
           </div>
         )}
 
         {/* コスト表示（開発環境のみ） */}
         {costInfo && (
-          <div className="mt-3 p-3 bg-gray-100 rounded text-xs text-gray-500 font-mono">
-            <p>
-              入力: {costInfo.inputTokens} | 出力: {costInfo.outputTokens} |
-              キャッシュ読取: {costInfo.cacheReadTokens} | キャッシュ作成:{" "}
-              {costInfo.cacheCreationTokens} | 推定コスト: ¥
-              {costInfo.estimatedCostJPY.toFixed(4)}
-            </p>
+          <div className="mt-4 py-2 px-3 bg-base rounded-[4px] text-[10px] text-text-muted font-display tracking-wide">
+            IN:{costInfo.inputTokens} | OUT:{costInfo.outputTokens} |
+            CACHE_R:{costInfo.cacheReadTokens} | CACHE_W:{costInfo.cacheCreationTokens} |
+            COST: &yen;{costInfo.estimatedCostJPY.toFixed(4)}
           </div>
         )}
       </div>
 
       {/* ナビゲーションカード */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Link
-          href="/persons/new"
-          className="block p-6 bg-white rounded-lg shadow-sm border border-gray-200 hover:border-indigo-300 hover:shadow-md transition-all"
-        >
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">
-            人物を登録する
-          </h2>
-          <p className="text-sm text-gray-600">
-            関わりのある人の情報を登録して、より良い関係構築のヒントを得ましょう。
-          </p>
-        </Link>
-
-        <Link
-          href="/persons"
-          className="block p-6 bg-white rounded-lg shadow-sm border border-gray-200 hover:border-indigo-300 hover:shadow-md transition-all"
-        >
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">
-            人物一覧を見る
-          </h2>
-          <p className="text-sm text-gray-600">
-            登録済みの人物情報と占術分析結果を確認できます。
-          </p>
-        </Link>
-
-        <Link
-          href="/consult"
-          className="block p-6 bg-white rounded-lg shadow-sm border border-gray-200 hover:border-indigo-300 hover:shadow-md transition-all"
-        >
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">
-            ディープ相談
-          </h2>
-          <p className="text-sm text-gray-600">
-            具体的な場面に対するアクションプランをAIが提案します。
-          </p>
-        </Link>
+      <div className="grid grid-cols-3 gap-4">
+        {[
+          {
+            href: "/persons/new",
+            title: "Register",
+            subtitle: "人物を登録する",
+            desc: "関わりのある人の情報を登録",
+          },
+          {
+            href: "/persons",
+            title: "People",
+            subtitle: "人物一覧",
+            desc: "登録済みの人物情報を確認",
+          },
+          {
+            href: "/consult",
+            title: "Consult",
+            subtitle: "ディープ相談",
+            desc: "AIがアクションプランを提案",
+          },
+        ].map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className="card hover:border-gold transition-all duration-300 group"
+          >
+            <h3 className="font-display text-lg text-gold group-hover:text-gold tracking-wide">
+              {item.title}
+            </h3>
+            <p className="text-xs text-text-secondary mt-0.5">
+              {item.subtitle}
+            </p>
+            <p className="text-xs text-text-muted mt-3 leading-relaxed">
+              {item.desc}
+            </p>
+          </Link>
+        ))}
       </div>
     </div>
   );

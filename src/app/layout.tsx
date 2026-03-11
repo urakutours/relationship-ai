@@ -1,20 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import { SidebarNav } from "./sidebar-nav";
 
 export const metadata: Metadata = {
-  title: "人間関係ナビ",
+  title: "Relationship AI",
   description: "東洋・西洋の占術と観察情報を統合した人間関係ナビゲーションアプリ",
 };
 
@@ -25,42 +15,40 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-50 min-h-screen`}
-      >
-        {/* ナビゲーションバー */}
-        <nav className="bg-white shadow-sm border-b border-gray-200">
-          <div className="max-w-4xl mx-auto px-4 py-3 flex items-center gap-6">
-            <Link href="/" className="text-lg font-bold text-indigo-600">
-              人間関係ナビ
-            </Link>
-            <Link
-              href="/persons"
-              className="text-sm text-gray-600 hover:text-indigo-600 transition-colors"
-            >
-              人物一覧
-            </Link>
-            <Link
-              href="/persons/new"
-              className="text-sm text-gray-600 hover:text-indigo-600 transition-colors"
-            >
-              人物登録
-            </Link>
-            <Link
-              href="/consult"
-              className="text-sm text-gray-600 hover:text-indigo-600 transition-colors"
-            >
-              ディープ相談
-            </Link>
-            <Link
-              href="/profile"
-              className="text-sm text-gray-600 hover:text-indigo-600 transition-colors ml-auto"
-            >
-              自分のプロフィール
+      <body className="min-h-screen flex">
+        {/* 左サイドバー */}
+        <aside className="w-[240px] min-h-screen bg-surface border-r border-border-subtle flex flex-col fixed top-0 left-0">
+          {/* ロゴ */}
+          <div className="px-6 pt-8 pb-6">
+            <Link href="/" className="block">
+              <h1 className="font-display text-[22px] font-semibold tracking-[0.08em] text-gold uppercase leading-tight">
+                Relationship<br />AI
+              </h1>
+              <p className="text-[11px] text-text-secondary mt-1.5 tracking-[0.15em]">
+                人間関係の羅針盤
+              </p>
             </Link>
           </div>
-        </nav>
-        <main className="max-w-4xl mx-auto px-4 py-6">{children}</main>
+
+          {/* ナビゲーション */}
+          <nav className="flex-1 px-3">
+            <SidebarNav />
+          </nav>
+
+          {/* フッター */}
+          <div className="px-6 py-4 border-t border-border-subtle">
+            <p className="text-[10px] text-text-muted tracking-wider font-display">
+              DIVINATION &times; OBSERVATION
+            </p>
+          </div>
+        </aside>
+
+        {/* メインコンテンツ */}
+        <main className="ml-[240px] flex-1 min-h-screen">
+          <div className="max-w-4xl mx-auto px-10 py-10">
+            {children}
+          </div>
+        </main>
       </body>
     </html>
   );

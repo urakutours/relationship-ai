@@ -57,128 +57,85 @@ export default function PersonsListPage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-12">
-        <p className="text-gray-500">読み込み中...</p>
+      <div className="flex justify-center py-16">
+        <p className="text-text-muted text-sm">読み込み中...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">人物一覧</h1>
-        <Link
-          href="/persons/new"
-          className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 transition-colors"
-        >
+        <h1 className="font-display text-[32px] font-light text-gold tracking-wide">
+          People
+        </h1>
+        <Link href="/persons/new" className="btn-ghost">
           新規登録
         </Link>
       </div>
 
       {persons.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-          <p className="text-gray-500 mb-4">まだ人物が登録されていません</p>
-          <Link
-            href="/persons/new"
-            className="text-indigo-600 hover:text-indigo-700 font-medium"
-          >
+        <div className="card text-center py-16">
+          <p className="text-text-muted mb-4">まだ人物が登録されていません</p>
+          <Link href="/persons/new" className="btn-ghost">
             最初の人物を登録する
           </Link>
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="space-y-0">
+          {/* ヘッダー行 */}
+          <div className="flex items-center px-4 py-2 text-[11px] text-text-muted uppercase font-display tracking-widest border-b border-border-subtle">
+            <span className="flex-1">Name</span>
+            <span className="w-24 text-center">Relation</span>
+            <span className="w-20 text-center">Score</span>
+            <span className="w-16" />
+          </div>
+
+          {/* 人物リスト */}
           {persons.map((person) => {
             const div = divinations[person.id];
             return (
               <div
                 key={person.id}
-                className="bg-white rounded-lg shadow-sm border border-gray-200 p-5"
+                className="flex items-center px-4 py-4 border-b border-border-subtle hover:bg-surface-hover transition-colors duration-200 group"
               >
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-3">
-                      <h2 className="text-lg font-semibold text-gray-900">
-                        {person.nickname}
-                      </h2>
-                      <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 text-xs rounded-full">
-                        {person.relationship}
-                      </span>
-                    </div>
-
-                    <div className="flex flex-wrap gap-3 text-sm text-gray-500">
-                      {person.birthDate && (
-                        <span>生年月日: {person.birthDate}</span>
-                      )}
-                      {person.birthYear && !person.birthDate && (
-                        <span>生まれ年: {person.birthYear}年</span>
-                      )}
-                      {person.gender && <span>{person.gender}</span>}
-                      {person.bloodType && (
-                        <span>{person.bloodType}型</span>
-                      )}
-                      {person.birthCountry && (
-                        <span>{person.birthCountry}</span>
-                      )}
-                      {person.birthOrder && person.birthOrder !== "不明" && (
-                        <span>{person.birthOrder}</span>
-                      )}
-                    </div>
-
-                    {/* 占術結果 */}
-                    {div && (
-                      <div className="flex flex-wrap gap-2 mt-1">
-                        {div.solarSign && (
-                          <span className="px-2 py-0.5 bg-yellow-50 text-yellow-700 text-xs rounded-full">
-                            {div.solarSign}
-                          </span>
-                        )}
-                        {div.numerology && (
-                          <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-xs rounded-full">
-                            誕生数{div.numerology}
-                          </span>
-                        )}
-                        {div.kyusei && (
-                          <span className="px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded-full">
-                            {div.kyusei}
-                          </span>
-                        )}
-                        {div.dayPillar && (
-                          <span className="px-2 py-0.5 bg-red-50 text-red-700 text-xs rounded-full">
-                            日柱: {div.dayPillar}
-                          </span>
-                        )}
-                        {div.wuxingProfile && (
-                          <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full">
-                            五行: 木{div.wuxingProfile.wood} 火
-                            {div.wuxingProfile.fire} 土
-                            {div.wuxingProfile.earth} 金
-                            {div.wuxingProfile.metal} 水
-                            {div.wuxingProfile.water}
-                          </span>
-                        )}
-                      </div>
-                    )}
-
+                {/* 名前・観察メモ */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3">
+                    <span className="text-text-primary text-[15px]">
+                      {person.nickname}
+                    </span>
                     {person.observations.length > 0 && (
-                      <div className="flex flex-wrap gap-2">
-                        {person.observations.map((obs) => (
-                          <span
-                            key={obs.id}
-                            className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded"
-                          >
-                            {obs.content}
-                          </span>
-                        ))}
-                      </div>
+                      <span className="text-text-muted text-xs truncate max-w-[200px]">
+                        {person.observations.map((o) => o.content).join("、")}
+                      </span>
                     )}
                   </div>
+                </div>
 
+                {/* 関係性タグ */}
+                <div className="w-24 text-center">
+                  <span className="inline-block px-2 py-0.5 border border-border-subtle rounded-[4px] text-[11px] text-text-secondary">
+                    {person.relationship}
+                  </span>
+                </div>
+
+                {/* 簡易スコア（占術データから星表示） */}
+                <div className="w-20 text-center text-xs text-gold">
+                  {div ? "★".repeat(Math.min(5, Math.max(1, Math.ceil((div.numerology || 3) / 2)))) : "—"}
+                </div>
+
+                {/* アクション */}
+                <div className="w-16 flex items-center justify-end gap-2">
                   <button
                     onClick={() => handleDelete(person.id, person.nickname)}
-                    className="text-gray-400 hover:text-red-500 transition-colors text-sm ml-4"
+                    className="text-text-muted hover:text-danger transition-colors text-xs opacity-0 group-hover:opacity-100"
                   >
                     削除
                   </button>
+                  <span className="text-gold opacity-0 group-hover:opacity-100 transition-opacity">
+                    &rarr;
+                  </span>
                 </div>
               </div>
             );

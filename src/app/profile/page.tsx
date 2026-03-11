@@ -73,7 +73,6 @@ export default function ProfilePage() {
       return;
     }
     try {
-      // クライアント側でAPIを叩いてプレビュー生成
       const params = new URLSearchParams();
       if (birthDate) params.set("birthDate", birthDate);
       if (birthYear) params.set("birthYear", birthYear);
@@ -143,239 +142,270 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex justify-center py-12">
-        <p className="text-gray-500">読み込み中...</p>
+      <div className="flex justify-center py-16">
+        <p className="text-text-muted text-sm">読み込み中...</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">
-        自分のプロフィール
-      </h1>
+    <div className="flex gap-10">
+      {/* 左: フォーム */}
+      <div className="flex-1 max-w-xl">
+        <h1 className="font-display text-[32px] font-light text-gold tracking-wide mb-8">
+          Profile
+        </h1>
 
-      <form onSubmit={handleSave} className="space-y-6">
-        {/* ニックネーム */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            ニックネーム <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
-            required
-            placeholder="自分"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-          />
-        </div>
-
-        {/* 生年月日 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            生年月日（任意）
-          </label>
-          <input
-            type="date"
-            value={birthDate}
-            onChange={(e) => setBirthDate(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-          />
-        </div>
-
-        {/* 生まれた年 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            生まれた年（生年月日が不明な場合）
-          </label>
-          <input
-            type="number"
-            value={birthYear}
-            onChange={(e) => setBirthYear(e.target.value)}
-            placeholder="例: 1985"
-            min="1900"
-            max="2025"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-          />
-        </div>
-
-        {/* 性別 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            性別
-          </label>
-          <select
-            value={gender}
-            onChange={(e) => setGender(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-          >
-            <option value="">未選択</option>
-            {GENDER_OPTIONS.map((g) => (
-              <option key={g.value} value={g.value}>
-                {g.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* 血液型 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            血液型
-          </label>
-          <select
-            value={bloodType}
-            onChange={(e) => setBloodType(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-          >
-            <option value="">未選択</option>
-            {BLOOD_TYPE_OPTIONS.map((bt) => (
-              <option key={bt} value={bt}>
-                {bt}型
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* 出生順位 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            出生順位
-          </label>
-          <select
-            value={birthOrder}
-            onChange={(e) => setBirthOrder(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-          >
-            <option value="">未選択</option>
-            {BIRTH_ORDER_OPTIONS.map((bo) => (
-              <option key={bo.value} value={bo.value}>
-                {bo.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* 出身国 */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            出身国
-          </label>
-          <input
-            type="text"
-            value={birthCountry}
-            onChange={(e) => setBirthCountry(e.target.value)}
-            placeholder="JP"
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-          />
-        </div>
-
-        {/* MBTI */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            MBTI（任意）
-          </label>
-          <input
-            type="text"
-            value={mbti}
-            onChange={(e) => setMbti(e.target.value)}
-            placeholder="例: INTJ"
-            maxLength={4}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none uppercase"
-          />
-        </div>
-
-        {/* 自分の特性メモ */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            自分の特性メモ
-          </label>
-          <div className="space-y-2">
-            {memoTags.map((tag, index) => (
-              <div key={index} className="flex gap-2">
-                <input
-                  type="text"
-                  value={tag}
-                  onChange={(e) => updateMemoTag(index, e.target.value)}
-                  placeholder="例: せっかちな方、感情で動くことが多い"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
-                />
-                {memoTags.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => removeMemoTag(index)}
-                    className="px-3 py-2 text-gray-400 hover:text-red-500 transition-colors"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-            ))}
+        <form onSubmit={handleSave} className="space-y-0">
+          {/* ニックネーム */}
+          <div className="py-4">
+            <label className="block text-xs text-text-secondary mb-2 tracking-wide">
+              ニックネーム <span className="text-gold">*</span>
+            </label>
+            <input
+              type="text"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              required
+              placeholder="自分"
+              className="input-underline"
+            />
           </div>
-          <button
-            type="button"
-            onClick={addMemoTag}
-            className="mt-2 text-sm text-indigo-600 hover:text-indigo-700"
-          >
-            + メモを追加
-          </button>
-        </div>
 
-        {/* 占術計算結果プレビュー */}
-        {divPreview && (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">
-              占術計算結果プレビュー
+          {/* 生年月日 */}
+          <div className="py-4">
+            <label className="block text-xs text-text-secondary mb-2 tracking-wide">
+              生年月日 <span className="text-text-muted">(任意)</span>
+            </label>
+            <input
+              type="date"
+              value={birthDate}
+              onChange={(e) => setBirthDate(e.target.value)}
+              className="input-underline"
+            />
+          </div>
+
+          {/* 生まれた年 */}
+          <div className="py-4">
+            <label className="block text-xs text-text-secondary mb-2 tracking-wide">
+              生まれた年 <span className="text-text-muted">(任意)</span>
+            </label>
+            <input
+              type="number"
+              value={birthYear}
+              onChange={(e) => setBirthYear(e.target.value)}
+              placeholder="例: 1985"
+              min="1900"
+              max="2025"
+              className="input-underline"
+            />
+          </div>
+
+          <hr className="divider" />
+
+          {/* 性別 */}
+          <div className="py-4">
+            <label className="block text-xs text-text-secondary mb-2 tracking-wide">
+              性別 <span className="text-text-muted">(任意)</span>
+            </label>
+            <select
+              value={gender}
+              onChange={(e) => setGender(e.target.value)}
+              className="input-underline"
+            >
+              <option value="">未選択</option>
+              {GENDER_OPTIONS.map((g) => (
+                <option key={g.value} value={g.value}>
+                  {g.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 血液型 */}
+          <div className="py-4">
+            <label className="block text-xs text-text-secondary mb-2 tracking-wide">
+              血液型 <span className="text-text-muted">(任意)</span>
+            </label>
+            <select
+              value={bloodType}
+              onChange={(e) => setBloodType(e.target.value)}
+              className="input-underline"
+            >
+              <option value="">未選択</option>
+              {BLOOD_TYPE_OPTIONS.map((bt) => (
+                <option key={bt} value={bt}>
+                  {bt}型
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 出生順位 */}
+          <div className="py-4">
+            <label className="block text-xs text-text-secondary mb-2 tracking-wide">
+              出生順位 <span className="text-text-muted">(任意)</span>
+            </label>
+            <select
+              value={birthOrder}
+              onChange={(e) => setBirthOrder(e.target.value)}
+              className="input-underline"
+            >
+              <option value="">未選択</option>
+              {BIRTH_ORDER_OPTIONS.map((bo) => (
+                <option key={bo.value} value={bo.value}>
+                  {bo.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 出身国 */}
+          <div className="py-4">
+            <label className="block text-xs text-text-secondary mb-2 tracking-wide">
+              出身国 <span className="text-text-muted">(任意)</span>
+            </label>
+            <input
+              type="text"
+              value={birthCountry}
+              onChange={(e) => setBirthCountry(e.target.value)}
+              placeholder="JP"
+              className="input-underline"
+            />
+          </div>
+
+          <hr className="divider" />
+
+          {/* MBTI */}
+          <div className="py-4">
+            <label className="block text-xs text-text-secondary mb-2 tracking-wide">
+              MBTI <span className="text-text-muted">(任意)</span>
+            </label>
+            <input
+              type="text"
+              value={mbti}
+              onChange={(e) => setMbti(e.target.value)}
+              placeholder="例: INTJ"
+              maxLength={4}
+              className="input-underline uppercase"
+            />
+          </div>
+
+          {/* 自分の特性メモ */}
+          <div className="py-4">
+            <label className="block text-xs text-text-secondary mb-3 tracking-wide">
+              自分の特性メモ
+            </label>
+            <div className="space-y-3">
+              {memoTags.map((tag, index) => (
+                <div key={index} className="flex gap-3 items-center">
+                  <input
+                    type="text"
+                    value={tag}
+                    onChange={(e) => updateMemoTag(index, e.target.value)}
+                    placeholder="例: せっかちな方、感情で動くことが多い"
+                    className="input-underline"
+                  />
+                  {memoTags.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeMemoTag(index)}
+                      className="text-text-muted hover:text-danger transition-colors text-xs shrink-0"
+                    >
+                      &#x2715;
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={addMemoTag}
+              className="mt-3 text-xs text-jade hover:text-gold transition-colors"
+            >
+              + メモを追加
+            </button>
+          </div>
+
+          {/* 保存ボタン */}
+          <div className="flex items-center gap-4 pt-8">
+            <button
+              type="submit"
+              disabled={saving || !nickname.trim()}
+              className="btn-ghost"
+            >
+              {saving ? "保存中..." : "保存する"}
+            </button>
+            {saved && (
+              <span className="text-jade text-xs">保存しました</span>
+            )}
+          </div>
+        </form>
+      </div>
+
+      {/* 右: 占術プレビュー */}
+      {divPreview && (
+        <div className="w-64 shrink-0 pt-[72px]">
+          <div className="card sticky top-10">
+            <h3 className="text-xs text-text-muted uppercase font-display tracking-widest mb-4">
+              Divination Preview
             </h3>
-            <div className="flex flex-wrap gap-2">
+            <div className="space-y-3">
               {divPreview.solarSign && (
-                <span className="px-2 py-0.5 bg-yellow-50 text-yellow-700 text-xs rounded-full">
-                  {divPreview.solarSign}
-                </span>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-text-muted text-xs">星座</span>
+                  <span className="text-gold">{divPreview.solarSign}</span>
+                </div>
               )}
               {divPreview.numerology && (
-                <span className="px-2 py-0.5 bg-purple-50 text-purple-700 text-xs rounded-full">
-                  誕生数{divPreview.numerology}
-                </span>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-text-muted text-xs">誕生数</span>
+                  <span className="text-gold">{divPreview.numerology}</span>
+                </div>
               )}
               {divPreview.kyusei && (
-                <span className="px-2 py-0.5 bg-green-50 text-green-700 text-xs rounded-full">
-                  {divPreview.kyusei}
-                </span>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-text-muted text-xs">九星</span>
+                  <span className="text-jade">{divPreview.kyusei}</span>
+                </div>
               )}
               {divPreview.dayPillar && (
-                <span className="px-2 py-0.5 bg-red-50 text-red-700 text-xs rounded-full">
-                  日柱: {divPreview.dayPillar}
-                </span>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-text-muted text-xs">日柱</span>
+                  <span className="text-jade">{divPreview.dayPillar}</span>
+                </div>
               )}
               {divPreview.wuxingProfile && (
-                <span className="px-2 py-0.5 bg-blue-50 text-blue-700 text-xs rounded-full">
-                  五行: 木{divPreview.wuxingProfile.wood} 火
-                  {divPreview.wuxingProfile.fire} 土
-                  {divPreview.wuxingProfile.earth} 金
-                  {divPreview.wuxingProfile.metal} 水
-                  {divPreview.wuxingProfile.water}
-                </span>
+                <div className="pt-2 border-t border-border-subtle">
+                  <span className="text-text-muted text-[10px] uppercase font-display tracking-widest">
+                    Wuxing
+                  </span>
+                  <div className="mt-2 space-y-1.5">
+                    {[
+                      { label: "木", value: divPreview.wuxingProfile.wood },
+                      { label: "火", value: divPreview.wuxingProfile.fire },
+                      { label: "土", value: divPreview.wuxingProfile.earth },
+                      { label: "金", value: divPreview.wuxingProfile.metal },
+                      { label: "水", value: divPreview.wuxingProfile.water },
+                    ].map((el) => (
+                      <div key={el.label} className="flex items-center gap-2">
+                        <span className="text-xs text-text-secondary w-4">{el.label}</span>
+                        <div className="flex-1 h-1 bg-base rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gold rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(100, (el.value / 8) * 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] text-text-muted w-4 text-right">{el.value}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               )}
             </div>
           </div>
-        )}
-
-        {/* 保存ボタン */}
-        <div className="flex items-center gap-3 pt-4">
-          <button
-            type="submit"
-            disabled={saving || !nickname.trim()}
-            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {saving ? "保存中..." : "保存する"}
-          </button>
-          {saved && (
-            <span className="text-green-600 text-sm">保存しました</span>
-          )}
         </div>
-      </form>
+      )}
     </div>
   );
 }
