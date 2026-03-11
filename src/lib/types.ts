@@ -48,6 +48,21 @@ export interface ObservationData {
   createdAt: string;
 }
 
+// ラベルデータ
+export interface LabelData {
+  id: number;
+  name: string;
+  color: string;
+  createdAt: string;
+}
+
+// 人物×ラベル中間データ
+export interface PersonLabelData {
+  personId: string;
+  labelId: number;
+  label: LabelData;
+}
+
 // 人物データ（DB取得後）
 export interface PersonData {
   id: string;
@@ -61,6 +76,8 @@ export interface PersonData {
   birthOrder: string | null;
   personalContext: string | null;
   observations: ObservationData[];
+  labels: PersonLabelData[];
+  sortOrder: number | null;
   // AI生成ノート
   quickNote: string | null;
   deepNote: string | null;
@@ -118,6 +135,7 @@ export interface ConsultationLogData {
   context: string;
   result: string;
   createdAt: string;
+  person?: { id: string; nickname: string; relationship: string };
 }
 
 // APIレスポンスに含めるコスト情報（開発環境用）

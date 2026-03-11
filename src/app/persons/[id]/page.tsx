@@ -495,6 +495,14 @@ export default function PersonDetailPage() {
         </div>
       )}
 
+      {/* ===== 相談ボタン ===== */}
+      {!editMode && (
+        <button onClick={openConsultModal} className="w-full card flex items-center justify-between group hover:border-gold transition-colors duration-200 cursor-pointer">
+          <span className="text-text-primary text-sm">この人物について相談する</span>
+          <span className="text-gold group-hover:translate-x-1 transition-transform duration-200">→</span>
+        </button>
+      )}
+
       {/* ===== クイック分析 ===== */}
       <div className="card">
         <div className="flex items-center justify-between mb-4">
@@ -578,12 +586,6 @@ export default function PersonDetailPage() {
           入力: {costInfo.inputTokens} | 出力: {costInfo.outputTokens} | キャッシュ読: {costInfo.cacheReadTokens} | キャッシュ作成: {costInfo.cacheCreationTokens} | 推定コスト: ¥{costInfo.estimatedCostJPY.toFixed(4)}
         </div>
       )}
-
-      {/* ===== 相談ボタン ===== */}
-      <button onClick={openConsultModal} className="w-full card flex items-center justify-between group hover:border-gold transition-colors duration-200 cursor-pointer">
-        <span className="text-text-primary text-sm">この人物について相談する</span>
-        <span className="text-gold group-hover:translate-x-1 transition-transform duration-200">→</span>
-      </button>
 
       {/* ===== 相談モーダル ===== */}
       {showConsultModal && (
