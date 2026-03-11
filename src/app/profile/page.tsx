@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import type { DivinationResult } from "@/lib/types";
+import { useState, useEffect, useCallback, useRef } from "react";
+import type { DivinationResult, CostInfo } from "@/lib/types";
 import { BirthDateSelect } from "@/components/birth-date-select";
 
 // 性別の選択肢（内部値→表示ラベル）
@@ -11,10 +11,8 @@ const GENDER_OPTIONS = [
   { value: "other", label: "その他" },
 ] as const;
 
-// 血液型
 const BLOOD_TYPE_OPTIONS = ["A", "B", "O", "AB"] as const;
 
-// 出生順位
 const BIRTH_ORDER_OPTIONS = [
   { value: "first", label: "長子" },
   { value: "middle", label: "中間" },
@@ -22,16 +20,22 @@ const BIRTH_ORDER_OPTIONS = [
   { value: "only", label: "一人っ子" },
 ] as const;
 
-// birthDate (YYYY-MM-DD) を年・月・日に分解
 function parseBirthDate(dateStr: string | null): { year: string; month: string; day: string } {
   if (!dateStr) return { year: "", month: "", day: "" };
   const parts = dateStr.split("-");
   if (parts.length !== 3) return { year: "", month: "", day: "" };
-  return {
-    year: String(parseInt(parts[0])),
-    month: String(parseInt(parts[1])),
-    day: String(parseInt(parts[2])),
-  };
+  return { year: String(parseInt(parts[0])), month: String(parseInt(parts[1])), day: String(parseInt(parts[2])) };
+}
+
+/** Markdownをシンプルに表示用HTMLに変換 */
+function renderMarkdown(md: string): string {
+  return md
+    .replace(/^## (.+)$/gm, '<h3 class="text-gold font-display text-lg tracking-wide mt-5 mb-2">$1</h3>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong class="text-text-primary">$1</strong>')
+    .replace(/^(\d+)\. (.+)$/gm, '<div class="flex gap-2 mb-1"><span class="text-gold shrink-0">$1.</span><span>$2</span></div>')
+    .replace(/^- (.+)$/gm, '<div class="flex gap-2 mb-1"><span class="text-gold shrink-0">•</span><span>$1</span></div>')
+    .replace(/\n\n/g, '<div class="h-3"></div>')
+    .replace(/\n/g, "<br/>");
 }
 
 export default function ProfilePage() {
@@ -54,13 +58,22 @@ export default function ProfilePage() {
   // 占術プレビュー
   const [divPreview, setDivPreview] = useState<DivinationResult | null>(null);
 
-  // 年月日からbirthDate文字列を生成
+  // 分析ノート
+  const [quickNote, setQuickNote] = useState<string | null>(null);
+  const [deepNote, setDeepNote] = useState<string | null>(null);
+  const [quickNoteUpdatedAt, setQuickNoteUpdatedAt] = useState<string | null>(null);
+  const [deepNoteUpdatedAt, setDeepNoteUpdatedAt] = useState<string | null>(null);
+  const [quickAnalyzing, setQuickAnalyzing] = useState(false);
+  const [deepAnalyzing, setDeepAnalyzing] = useState(false);
+  const [analysisCostInfo, setAnalysisCostInfo] = useState<CostInfo | null>(null);
+
+  // ポーリング用
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollCountRef = useRef(0);
+
   const buildBirthDate = (): string | null => {
     if (!birthYear || !birthMonth || !birthDay) return null;
-    const y = birthYear.padStart(4, "0");
-    const m = birthMonth.padStart(2, "0");
-    const d = birthDay.padStart(2, "0");
-    return `${y}-${m}-${d}`;
+    return `${birthYear.padStart(4, "0")}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}`;
   };
 
   // プロフィール読み込み
@@ -70,75 +83,69 @@ export default function ProfilePage() {
       .then((data) => {
         if (data.exists) {
           setNickname(data.nickname || "自分");
-          // birthDateを年月日に分解
           const parsed = parseBirthDate(data.birthDate || null);
-          if (parsed.year) {
-            setBirthYear(parsed.year);
-            setBirthMonth(parsed.month);
-            setBirthDay(parsed.day);
-          } else if (data.birthYear) {
-            setBirthYear(String(data.birthYear));
-          }
+          if (parsed.year) { setBirthYear(parsed.year); setBirthMonth(parsed.month); setBirthDay(parsed.day); }
+          else if (data.birthYear) { setBirthYear(String(data.birthYear)); }
           setGender(data.gender || "");
           setBloodType(data.bloodType || "");
           setBirthOrder(data.birthOrder || "");
           setBirthCountry(data.birthCountry || "JP");
           setMbti(data.mbti || "");
-          try {
-            const tags = JSON.parse(data.memoTags || "[]");
-            setMemoTags(tags.length > 0 ? tags : [""]);
-          } catch {
-            setMemoTags([""]);
-          }
+          try { const tags = JSON.parse(data.memoTags || "[]"); setMemoTags(tags.length > 0 ? tags : [""]); } catch { setMemoTags([""]); }
+          // 分析ノート
+          setQuickNote(data.quickNote || null);
+          setDeepNote(data.deepNote || null);
+          setQuickNoteUpdatedAt(data.quickNoteUpdatedAt || null);
+          setDeepNoteUpdatedAt(data.deepNoteUpdatedAt || null);
         }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
-  // 占術プレビューの更新
+  // 占術プレビュー
   const birthDate = buildBirthDate();
   const updateDivPreview = useCallback(async () => {
-    if (!birthDate && !birthYear) {
-      setDivPreview(null);
-      return;
-    }
+    if (!birthDate && !birthYear) { setDivPreview(null); return; }
     try {
       const params = new URLSearchParams();
       if (birthDate) params.set("birthDate", birthDate);
       if (birthYear) params.set("birthYear", birthYear);
       const res = await fetch(`/api/profile/divination?${params}`);
-      if (res.ok) {
-        const data = await res.json();
-        setDivPreview(data.divination);
-      }
-    } catch {
-      // プレビュー失敗は無視
-    }
+      if (res.ok) { const data = await res.json(); setDivPreview(data.divination); }
+    } catch {}
   }, [birthDate, birthYear]);
 
-  useEffect(() => {
-    updateDivPreview();
-  }, [updateDivPreview]);
+  useEffect(() => { updateDivPreview(); }, [updateDivPreview]);
 
   // メモタグ操作
   const addMemoTag = () => setMemoTags((prev) => [...prev, ""]);
-  const updateMemoTag = (index: number, value: string) => {
-    setMemoTags((prev) => {
-      const next = [...prev];
-      next[index] = value;
-      return next;
-    });
+  const updateMemoTag = (index: number, value: string) => { setMemoTags((prev) => { const next = [...prev]; next[index] = value; return next; }); };
+  const removeMemoTag = (index: number) => { setMemoTags((prev) => prev.filter((_, i) => i !== index)); };
+
+  // ポーリング（保存後の自動分析待ち）
+  const startPolling = () => {
+    pollCountRef.current = 0;
+    pollRef.current = setInterval(async () => {
+      pollCountRef.current += 1;
+      if (pollCountRef.current > 7) { stopPolling(); return; }
+      try {
+        const res = await fetch("/api/profile");
+        const data = await res.json();
+        if (data.quickNote && data.quickNote !== quickNote) {
+          setQuickNote(data.quickNote);
+          setQuickNoteUpdatedAt(data.quickNoteUpdatedAt);
+          stopPolling();
+        }
+      } catch {}
+    }, 2000);
   };
-  const removeMemoTag = (index: number) => {
-    setMemoTags((prev) => prev.filter((_, i) => i !== index));
-  };
+  const stopPolling = () => { if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; } };
 
   // 保存
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nickname.trim()) return;
-
     setSaving(true);
     setSaved(false);
     try {
@@ -160,6 +167,8 @@ export default function ProfilePage() {
       if (res.ok) {
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
+        // 保存後にポーリング開始（自動分析待ち）
+        startPolling();
       } else {
         const data = await res.json();
         alert(data.error || "保存に失敗しました");
@@ -171,258 +180,238 @@ export default function ProfilePage() {
     }
   };
 
+  // クイック分析
+  const runQuickAnalysis = async () => {
+    setQuickAnalyzing(true);
+    setAnalysisCostInfo(null);
+    try {
+      const res = await fetch("/api/profile/analyze", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setQuickNote(data.quickNote);
+        setQuickNoteUpdatedAt(data.quickNoteUpdatedAt);
+        if (data.costInfo) setAnalysisCostInfo(data.costInfo);
+      }
+    } catch (err) { console.error("プロフィール分析エラー:", err); }
+    finally { setQuickAnalyzing(false); }
+  };
+
+  // 深掘り分析
+  const runDeepAnalysis = async () => {
+    setDeepAnalyzing(true);
+    setAnalysisCostInfo(null);
+    try {
+      const res = await fetch("/api/profile/analyze-deep", { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setDeepNote(data.deepNote);
+        setDeepNoteUpdatedAt(data.deepNoteUpdatedAt);
+        if (data.costInfo) setAnalysisCostInfo(data.costInfo);
+      }
+    } catch (err) { console.error("プロフィール深掘り分析エラー:", err); }
+    finally { setDeepAnalyzing(false); }
+  };
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return null;
+    try {
+      const d = new Date(dateStr);
+      return `${d.getMonth() + 1}月${d.getDate()}日 ${d.getHours().toString().padStart(2, "0")}:${d.getMinutes().toString().padStart(2, "0")}`;
+    } catch { return null; }
+  };
+
   if (loading) {
-    return (
-      <div className="flex justify-center py-16">
-        <p className="text-text-muted text-sm">読み込み中...</p>
-      </div>
-    );
+    return (<div className="flex justify-center py-16"><p className="text-text-muted text-sm">読み込み中...</p></div>);
   }
 
   return (
-    <div className="flex flex-col md:flex-row gap-10">
-      {/* 左: フォーム */}
-      <div className="flex-1 max-w-xl">
-        <h1 className="font-display text-[32px] font-light text-gold tracking-wide mb-8">
-          Profile
-        </h1>
+    <div className="space-y-10">
+      <div className="flex flex-col md:flex-row gap-10">
+        {/* 左: フォーム */}
+        <div className="flex-1 max-w-xl">
+          <h1 className="font-display text-[32px] font-light text-gold tracking-wide mb-8">Profile</h1>
 
-        <form onSubmit={handleSave} className="space-y-0">
-          {/* ニックネーム */}
-          <div className="py-4">
-            <label className="block text-xs text-text-secondary mb-2 tracking-wide">
-              ニックネーム <span className="text-gold">*</span>
-            </label>
-            <input
-              type="text"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              required
-              placeholder="自分"
-              className="input-underline"
-            />
-          </div>
-
-          {/* 生年月日 - 年/月/日 3分割 */}
-          <div className="py-4">
-            <label className="block text-xs text-text-secondary mb-2 tracking-wide">
-              生年月日 <span className="text-text-muted">(任意)</span>
-            </label>
-            <BirthDateSelect
-              birthYear={birthYear}
-              birthMonth={birthMonth}
-              birthDay={birthDay}
-              onYearChange={setBirthYear}
-              onMonthChange={setBirthMonth}
-              onDayChange={setBirthDay}
-            />
-          </div>
-
-          <hr className="divider" />
-
-          {/* 性別 */}
-          <div className="py-4">
-            <label className="block text-xs text-text-secondary mb-2 tracking-wide">
-              性別 <span className="text-text-muted">(任意)</span>
-            </label>
-            <select
-              value={gender}
-              onChange={(e) => setGender(e.target.value)}
-              className="input-underline"
-            >
-              <option value="">未選択</option>
-              {GENDER_OPTIONS.map((g) => (
-                <option key={g.value} value={g.value}>
-                  {g.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 血液型 */}
-          <div className="py-4">
-            <label className="block text-xs text-text-secondary mb-2 tracking-wide">
-              血液型 <span className="text-text-muted">(任意)</span>
-            </label>
-            <select
-              value={bloodType}
-              onChange={(e) => setBloodType(e.target.value)}
-              className="input-underline"
-            >
-              <option value="">未選択</option>
-              {BLOOD_TYPE_OPTIONS.map((bt) => (
-                <option key={bt} value={bt}>
-                  {bt}型
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 出生順位 */}
-          <div className="py-4">
-            <label className="block text-xs text-text-secondary mb-2 tracking-wide">
-              出生順位 <span className="text-text-muted">(任意)</span>
-            </label>
-            <select
-              value={birthOrder}
-              onChange={(e) => setBirthOrder(e.target.value)}
-              className="input-underline"
-            >
-              <option value="">未選択</option>
-              {BIRTH_ORDER_OPTIONS.map((bo) => (
-                <option key={bo.value} value={bo.value}>
-                  {bo.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* 出身国 */}
-          <div className="py-4">
-            <label className="block text-xs text-text-secondary mb-2 tracking-wide">
-              出身国 <span className="text-text-muted">(任意)</span>
-            </label>
-            <input
-              type="text"
-              value={birthCountry}
-              onChange={(e) => setBirthCountry(e.target.value)}
-              placeholder="JP"
-              className="input-underline"
-            />
-          </div>
-
-          <hr className="divider" />
-
-          {/* MBTI */}
-          <div className="py-4">
-            <label className="block text-xs text-text-secondary mb-2 tracking-wide">
-              MBTI <span className="text-text-muted">(任意)</span>
-            </label>
-            <input
-              type="text"
-              value={mbti}
-              onChange={(e) => setMbti(e.target.value)}
-              placeholder="例: INTJ"
-              maxLength={4}
-              className="input-underline uppercase"
-            />
-          </div>
-
-          {/* 自分の特性メモ */}
-          <div className="py-4">
-            <label className="block text-xs text-text-secondary mb-3 tracking-wide">
-              自分の特性メモ
-            </label>
-            <div className="space-y-3">
-              {memoTags.map((tag, index) => (
-                <div key={index} className="flex gap-3 items-center">
-                  <input
-                    type="text"
-                    value={tag}
-                    onChange={(e) => updateMemoTag(index, e.target.value)}
-                    placeholder="例: せっかちな方、感情で動くことが多い"
-                    className="input-underline"
-                  />
-                  {memoTags.length > 1 && (
-                    <button
-                      type="button"
-                      onClick={() => removeMemoTag(index)}
-                      className="text-text-muted hover:text-danger transition-colors text-xs shrink-0"
-                    >
-                      &#x2715;
-                    </button>
-                  )}
-                </div>
-              ))}
+          <form onSubmit={handleSave} className="space-y-0">
+            <div className="py-4">
+              <label className="block text-xs text-text-secondary mb-2 tracking-wide">ニックネーム <span className="text-gold">*</span></label>
+              <input type="text" value={nickname} onChange={(e) => setNickname(e.target.value)} required placeholder="自分" className="input-underline" />
             </div>
-            <button
-              type="button"
-              onClick={addMemoTag}
-              className="mt-3 text-xs text-jade hover:text-gold transition-colors"
-            >
-              + メモを追加
-            </button>
-          </div>
 
-          {/* 保存ボタン */}
-          <div className="flex items-center gap-4 pt-8">
-            <button
-              type="submit"
-              disabled={saving || !nickname.trim()}
-              className="btn-ghost"
-            >
-              {saving ? "保存中..." : "保存する"}
-            </button>
-            {saved && (
-              <span className="text-jade text-xs">保存しました</span>
-            )}
+            <div className="py-4">
+              <label className="block text-xs text-text-secondary mb-2 tracking-wide">生年月日 <span className="text-text-muted">(任意)</span></label>
+              <BirthDateSelect birthYear={birthYear} birthMonth={birthMonth} birthDay={birthDay} onYearChange={setBirthYear} onMonthChange={setBirthMonth} onDayChange={setBirthDay} />
+            </div>
+
+            <hr className="divider" />
+
+            <div className="py-4">
+              <label className="block text-xs text-text-secondary mb-2 tracking-wide">性別 <span className="text-text-muted">(任意)</span></label>
+              <select value={gender} onChange={(e) => setGender(e.target.value)} className="input-underline">
+                <option value="">未選択</option>
+                {GENDER_OPTIONS.map((g) => (<option key={g.value} value={g.value}>{g.label}</option>))}
+              </select>
+            </div>
+
+            <div className="py-4">
+              <label className="block text-xs text-text-secondary mb-2 tracking-wide">血液型 <span className="text-text-muted">(任意)</span></label>
+              <select value={bloodType} onChange={(e) => setBloodType(e.target.value)} className="input-underline">
+                <option value="">未選択</option>
+                {BLOOD_TYPE_OPTIONS.map((bt) => (<option key={bt} value={bt}>{bt}型</option>))}
+              </select>
+            </div>
+
+            <div className="py-4">
+              <label className="block text-xs text-text-secondary mb-2 tracking-wide">出生順位 <span className="text-text-muted">(任意)</span></label>
+              <select value={birthOrder} onChange={(e) => setBirthOrder(e.target.value)} className="input-underline">
+                <option value="">未選択</option>
+                {BIRTH_ORDER_OPTIONS.map((bo) => (<option key={bo.value} value={bo.value}>{bo.label}</option>))}
+              </select>
+            </div>
+
+            <div className="py-4">
+              <label className="block text-xs text-text-secondary mb-2 tracking-wide">出身国 <span className="text-text-muted">(任意)</span></label>
+              <input type="text" value={birthCountry} onChange={(e) => setBirthCountry(e.target.value)} placeholder="JP" className="input-underline" />
+            </div>
+
+            <hr className="divider" />
+
+            <div className="py-4">
+              <label className="block text-xs text-text-secondary mb-2 tracking-wide">MBTI <span className="text-text-muted">(任意)</span></label>
+              <input type="text" value={mbti} onChange={(e) => setMbti(e.target.value)} placeholder="例: INTJ" maxLength={4} className="input-underline uppercase" />
+            </div>
+
+            <div className="py-4">
+              <label className="block text-xs text-text-secondary mb-3 tracking-wide">自分の特性メモ</label>
+              <div className="space-y-3">
+                {memoTags.map((tag, index) => (
+                  <div key={index} className="flex gap-3 items-center">
+                    <input type="text" value={tag} onChange={(e) => updateMemoTag(index, e.target.value)} placeholder="例: せっかちな方、感情で動くことが多い" className="input-underline" />
+                    {memoTags.length > 1 && (
+                      <button type="button" onClick={() => removeMemoTag(index)} className="text-text-muted hover:text-danger transition-colors text-xs shrink-0">&#x2715;</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <button type="button" onClick={addMemoTag} className="mt-3 text-xs text-jade hover:text-gold transition-colors">+ メモを追加</button>
+            </div>
+
+            <div className="flex items-center gap-4 pt-8">
+              <button type="submit" disabled={saving || !nickname.trim()} className="btn-ghost">{saving ? "保存中..." : "保存する"}</button>
+              {saved && <span className="text-jade text-xs">保存しました</span>}
+            </div>
+          </form>
+        </div>
+
+        {/* 右: 占術プレビュー */}
+        {divPreview && (
+          <div className="w-full md:w-64 md:shrink-0 md:pt-[72px]">
+            <div className="card md:sticky md:top-10">
+              <h3 className="text-xs text-text-muted uppercase font-display tracking-widest mb-4">Divination Preview</h3>
+              <div className="space-y-3">
+                {divPreview.solarSign && (<div className="flex items-center justify-between text-sm"><span className="text-text-muted text-xs">星座</span><span className="text-gold">{divPreview.solarSign}</span></div>)}
+                {divPreview.numerology && (<div className="flex items-center justify-between text-sm"><span className="text-text-muted text-xs">誕生数</span><span className="text-gold">{divPreview.numerology}</span></div>)}
+                {divPreview.kyusei && (<div className="flex items-center justify-between text-sm"><span className="text-text-muted text-xs">九星</span><span className="text-jade">{divPreview.kyusei}</span></div>)}
+                {divPreview.dayPillar && (<div className="flex items-center justify-between text-sm"><span className="text-text-muted text-xs">日柱</span><span className="text-jade">{divPreview.dayPillar}</span></div>)}
+                {divPreview.wuxingProfile && (
+                  <div className="pt-2 border-t border-border-subtle">
+                    <span className="text-text-muted text-[10px] uppercase font-display tracking-widest">Wuxing</span>
+                    <div className="mt-2 space-y-1.5">
+                      {[
+                        { label: "木", value: divPreview.wuxingProfile.wood },
+                        { label: "火", value: divPreview.wuxingProfile.fire },
+                        { label: "土", value: divPreview.wuxingProfile.earth },
+                        { label: "金", value: divPreview.wuxingProfile.metal },
+                        { label: "水", value: divPreview.wuxingProfile.water },
+                      ].map((el) => (
+                        <div key={el.label} className="flex items-center gap-2">
+                          <span className="text-xs text-text-secondary w-4">{el.label}</span>
+                          <div className="flex-1 h-1 bg-base rounded-full overflow-hidden">
+                            <div className="h-full bg-gold rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (el.value / 8) * 100)}%` }} />
+                          </div>
+                          <span className="text-[10px] text-text-muted w-4 text-right">{el.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </form>
+        )}
       </div>
 
-      {/* 右: 占術プレビュー */}
-      {divPreview && (
-        <div className="w-full md:w-64 md:shrink-0 md:pt-[72px]">
-          <div className="card md:sticky md:top-10">
-            <h3 className="text-xs text-text-muted uppercase font-display tracking-widest mb-4">
-              Divination Preview
-            </h3>
-            <div className="space-y-3">
-              {divPreview.solarSign && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-text-muted text-xs">星座</span>
-                  <span className="text-gold">{divPreview.solarSign}</span>
-                </div>
-              )}
-              {divPreview.numerology && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-text-muted text-xs">誕生数</span>
-                  <span className="text-gold">{divPreview.numerology}</span>
-                </div>
-              )}
-              {divPreview.kyusei && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-text-muted text-xs">九星</span>
-                  <span className="text-jade">{divPreview.kyusei}</span>
-                </div>
-              )}
-              {divPreview.dayPillar && (
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-text-muted text-xs">日柱</span>
-                  <span className="text-jade">{divPreview.dayPillar}</span>
-                </div>
-              )}
-              {divPreview.wuxingProfile && (
-                <div className="pt-2 border-t border-border-subtle">
-                  <span className="text-text-muted text-[10px] uppercase font-display tracking-widest">
-                    Wuxing
-                  </span>
-                  <div className="mt-2 space-y-1.5">
-                    {[
-                      { label: "木", value: divPreview.wuxingProfile.wood },
-                      { label: "火", value: divPreview.wuxingProfile.fire },
-                      { label: "土", value: divPreview.wuxingProfile.earth },
-                      { label: "金", value: divPreview.wuxingProfile.metal },
-                      { label: "水", value: divPreview.wuxingProfile.water },
-                    ].map((el) => (
-                      <div key={el.label} className="flex items-center gap-2">
-                        <span className="text-xs text-text-secondary w-4">{el.label}</span>
-                        <div className="flex-1 h-1 bg-base rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gold rounded-full transition-all duration-500"
-                            style={{ width: `${Math.min(100, (el.value / 8) * 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-[10px] text-text-muted w-4 text-right">{el.value}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+      {/* ===== 自分の特性分析セクション ===== */}
+      <hr className="divider" />
+
+      <div className="space-y-6">
+        <h2 className="font-display text-[24px] font-light text-gold tracking-wide">Self Analysis</h2>
+
+        {/* クイック分析 */}
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-display text-lg text-gold tracking-wide">Quick Analysis</h3>
+            <div className="flex items-center gap-3">
+              {quickNoteUpdatedAt && <span className="text-[11px] text-text-muted">{formatDate(quickNoteUpdatedAt)}</span>}
+              <button onClick={runQuickAnalysis} disabled={quickAnalyzing} className="text-[12px] text-text-secondary hover:text-gold transition-colors disabled:opacity-40">
+                {quickAnalyzing ? "分析中..." : "再生成"}
+              </button>
             </div>
           </div>
+
+          {quickAnalyzing ? (
+            <div className="flex items-center justify-center py-8 gap-3">
+              <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+              <span className="text-text-muted text-sm">分析中...</span>
+            </div>
+          ) : quickNote ? (
+            <div className="text-sm text-text-secondary leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMarkdown(quickNote) }} />
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-text-muted text-sm mb-3">まだ分析が実行されていません</p>
+              <button onClick={runQuickAnalysis} className="btn-ghost text-sm">クイック分析を実行</button>
+            </div>
+          )}
         </div>
-      )}
+
+        {/* 深掘り分析 */}
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-display text-lg text-jade tracking-wide">Deep Analysis</h3>
+            {deepNoteUpdatedAt && <span className="text-[11px] text-text-muted">{formatDate(deepNoteUpdatedAt)}</span>}
+          </div>
+
+          {deepAnalyzing ? (
+            <div className="flex items-center justify-center py-10 gap-3">
+              <div className="w-5 h-5 border-2 border-jade border-t-transparent rounded-full animate-spin" />
+              <span className="text-text-muted text-sm">深掘り分析中... 少々お待ちください</span>
+            </div>
+          ) : deepNote ? (
+            <>
+              <div className="text-sm text-text-secondary leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMarkdown(deepNote) }} />
+              <div className="mt-4 pt-4 border-t border-border-subtle">
+                <button onClick={runDeepAnalysis} className="text-[12px] text-text-secondary hover:text-jade transition-colors">再生成する</button>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-text-muted text-sm mb-1">より詳しい自己分析を実行できます</p>
+              <p className="text-text-muted text-[11px] mb-4">生成には少し時間がかかります</p>
+              <button onClick={runDeepAnalysis} disabled={deepAnalyzing}
+                className="inline-flex items-center gap-2 px-6 py-2.5 border border-jade-dim text-jade bg-transparent rounded-[4px] text-sm hover:bg-jade hover:text-base transition-all duration-300 disabled:opacity-40">
+                <span className="text-lg leading-none">🔍</span>
+                詳細分析を実行する
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* コスト情報 */}
+        {analysisCostInfo && (
+          <div className="text-[11px] text-text-muted bg-surface-hover rounded px-3 py-2 font-mono">
+            入力: {analysisCostInfo.inputTokens} | 出力: {analysisCostInfo.outputTokens} | キャッシュ読: {analysisCostInfo.cacheReadTokens} | キャッシュ作成: {analysisCostInfo.cacheCreationTokens} | 推定コスト: ¥{analysisCostInfo.estimatedCostJPY.toFixed(4)}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -20,6 +20,7 @@ model Person {
   bloodType      String?  // A/B/O/AB
   birthCountry   String?  // 出身国
   birthOrder     String?  // 長子/中間/末子/一人っ子/不明
+  personalContext String?  // 家族構成・パートナーの有無・生活環境などの自由記述
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -30,8 +31,22 @@ model Person {
   quickNoteUpdatedAt  DateTime?
   deepNoteUpdatedAt   DateTime?
 
+  // 相談履歴
+  consultations  ConsultationLog[]
+
   // 観察メモ（複数追加可）
   observations   Observation[]
+}
+
+// 相談履歴
+model ConsultationLog {
+  id            String   @id @default(cuid())
+  personId      String
+  person        Person   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  consultType   String   // "standard" / "deep"
+  context       String   // 相談内容
+  result        String   // AI回答
+  createdAt     DateTime @default(now())
 }
 
 // 自分のプロフィール（常に1件のみ、id=1で固定）
@@ -46,6 +61,11 @@ model UserProfile {
   birthCountry  String?   @default("JP")
   mbti          String?   // 例: "INTJ"
   memoTags      String?   // JSON文字列として保存（自分の特性メモ配列）
+  // AI生成ノート
+  quickNote          String?
+  deepNote           String?
+  quickNoteUpdatedAt DateTime?
+  deepNoteUpdatedAt  DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }

@@ -90,6 +90,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // 保存成功後にバックグラウンドで分析を開始
+    const baseUrl = request.nextUrl.origin;
+    fetch(`${baseUrl}/api/profile/analyze`, { method: "POST" })
+      .catch((err) => console.error("バックグラウンドプロフィール分析エラー:", err));
+
     return NextResponse.json({ ...profile, exists: true });
   } catch (error) {
     console.error("プロフィール保存エラー:", error);

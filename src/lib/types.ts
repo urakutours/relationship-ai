@@ -59,6 +59,7 @@ export interface PersonData {
   bloodType: string | null;
   birthCountry: string | null;
   birthOrder: string | null;
+  personalContext: string | null;
   observations: ObservationData[];
   // AI生成ノート
   quickNote: string | null;
@@ -107,6 +108,16 @@ export interface ConsultPayload {
     divination: DivinationResult;
   };
   consultationContext: string;
+}
+
+// 相談履歴
+export interface ConsultationLogData {
+  id: string;
+  personId: string;
+  consultType: string;
+  context: string;
+  result: string;
+  createdAt: string;
 }
 
 // APIレスポンスに含めるコスト情報（開発環境用）

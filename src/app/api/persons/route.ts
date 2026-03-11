@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
       bloodType,
       birthCountry,
       birthOrder,
+      personalContext,
       observations,
     } = body;
 
@@ -53,6 +54,7 @@ export async function POST(request: NextRequest) {
         bloodType: bloodType || null,
         birthCountry: birthCountry || null,
         birthOrder: birthOrder || null,
+        personalContext: personalContext || null,
         observations: {
           create: (observations as string[])
             ?.filter((o: string) => o.trim())

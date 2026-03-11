@@ -24,6 +24,7 @@ export default function NewPersonPage() {
   const [bloodType, setBloodType] = useState("");
   const [birthCountry, setBirthCountry] = useState("");
   const [birthOrder, setBirthOrder] = useState("");
+  const [personalContext, setPersonalContext] = useState("");
   const [observations, setObservations] = useState<string[]>([""]);
 
   // 観察メモの追加
@@ -74,6 +75,7 @@ export default function NewPersonPage() {
           bloodType: bloodType || null,
           birthCountry: birthCountry || null,
           birthOrder: birthOrder || null,
+          personalContext: personalContext.trim() || null,
           observations: observations.filter((o) => o.trim()),
         }),
       });
@@ -131,6 +133,20 @@ export default function NewPersonPage() {
               </option>
             ))}
           </select>
+        </div>
+
+        {/* 家族構成・生活背景（任意） */}
+        <div className="py-4">
+          <label className="block text-xs text-text-secondary mb-2 tracking-wide">
+            家族構成・生活背景 <span className="text-text-muted">(任意)</span>
+          </label>
+          <textarea
+            value={personalContext}
+            onChange={(e) => setPersonalContext(e.target.value)}
+            placeholder="例: 既婚・子供2人、最近転職したばかり"
+            rows={2}
+            className="input-underline resize-none"
+          />
         </div>
 
         <hr className="divider" />

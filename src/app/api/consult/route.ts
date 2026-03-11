@@ -77,8 +77,19 @@ export async function POST(request: NextRequest) {
     // Sonnet呼び出し
     const result = await generateConsultation(payload);
 
+    // ConsultationLogに保存
+    const log = await prisma.consultationLog.create({
+      data: {
+        personId,
+        consultType: consultType || "standard",
+        context: consultationContext,
+        result: result.actionPlan,
+      },
+    });
+
     return NextResponse.json({
       actionPlan: result.actionPlan,
+      consultationLogId: log.id,
       target: {
         nickname: person.nickname,
         relationship: person.relationship,
