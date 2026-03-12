@@ -23,6 +23,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { PersonData, CostInfo, LabelData } from "@/lib/types";
 import { RELATIONSHIP_TYPES } from "@/lib/types";
+import { formatRelationshipShort } from "@/lib/relationship-types";
 
 const LABEL_PRESET_COLORS = [
   '#b8622a', '#a08c2a', '#4a8a2a', '#2a8a5a', '#2a7a72', '#2a6a9a',
@@ -166,7 +167,7 @@ function SortablePersonCard({
           )}
 
           <span className="inline-block px-2 py-0.5 border border-border-subtle rounded-[4px] text-[11px] text-text-secondary">
-            {person.relationship}
+            {formatRelationshipShort(person.relationshipCategory, person.relationshipSubtype, person.relationship)}
           </span>
 
           {/* ラベルバッジ */}
@@ -238,7 +239,7 @@ function SortablePersonCard({
                 </span>
               )}
               <span className="inline-block px-1.5 py-0.5 border border-border-subtle rounded-[3px] text-[10px] text-text-secondary shrink-0">
-                {person.relationship}
+                {formatRelationshipShort(person.relationshipCategory, person.relationshipSubtype, person.relationship)}
               </span>
               {!hasNote && (
                 <span className="inline-block px-1.5 py-0.5 rounded text-[9px] bg-amber-900/30 text-amber-400 border border-amber-700/30 shrink-0">
@@ -909,7 +910,7 @@ export default function PersonsListPage() {
                     </span>
                   )}
                   <span className="inline-block px-2 py-0.5 border border-border-subtle rounded-[4px] text-[11px] text-text-secondary">
-                    {person.relationship}
+                    {formatRelationshipShort(person.relationshipCategory, person.relationshipSubtype, person.relationship)}
                   </span>
                   <LabelBadges labels={person.labels} max={2} />
                   <span className="ml-auto text-xs text-gold tracking-wider">

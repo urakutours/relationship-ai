@@ -80,6 +80,9 @@ export interface PersonData {
   id: string;
   nickname: string;
   relationship: string;
+  relationshipCategory: string | null;
+  relationshipSubtype: string | null;
+  relationshipDetail: string | null;
   birthDate: string | null;
   birthYear: number | null;
   gender: string | null;

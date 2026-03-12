@@ -36,6 +36,9 @@ export async function PATCH(
     const {
       nickname,
       relationship,
+      relationshipCategory,
+      relationshipSubtype,
+      relationshipDetail,
       birthDate,
       birthYear,
       gender,
@@ -50,6 +53,9 @@ export async function PATCH(
     const updateData: Record<string, unknown> = {};
     if (nickname !== undefined) updateData.nickname = nickname;
     if (relationship !== undefined) updateData.relationship = relationship;
+    if (relationshipCategory !== undefined) updateData.relationshipCategory = relationshipCategory || null;
+    if (relationshipSubtype !== undefined) updateData.relationshipSubtype = relationshipSubtype || null;
+    if (relationshipDetail !== undefined) updateData.relationshipDetail = relationshipDetail || null;
     if (birthDate !== undefined) updateData.birthDate = birthDate || null;
     if (birthYear !== undefined) updateData.birthYear = birthYear ? parseInt(String(birthYear), 10) : null;
     if (gender !== undefined) updateData.gender = gender || null;

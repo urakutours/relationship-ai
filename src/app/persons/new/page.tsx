@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  RELATIONSHIP_TYPES,
   GENDER_OPTIONS,
   BLOOD_TYPE_OPTIONS,
   BIRTH_ORDER_OPTIONS,
 } from "@/lib/types";
+import { RELATIONSHIP_CATEGORIES } from "@/lib/relationship-types";
 import { BirthDateSelect } from "@/components/birth-date-select";
 
 export default function NewPersonPage() {
@@ -16,7 +16,9 @@ export default function NewPersonPage() {
 
   // フォーム状態
   const [nickname, setNickname] = useState("");
-  const [relationship, setRelationship] = useState<string>(RELATIONSHIP_TYPES[0]);
+  const [relCategory, setRelCategory] = useState("");
+  const [relSubtype, setRelSubtype] = useState("");
+  const [relDetail, setRelDetail] = useState("");
   const [birthYear, setBirthYear] = useState("");
   const [birthMonth, setBirthMonth] = useState("");
   const [birthDay, setBirthDay] = useState("");
@@ -58,17 +60,25 @@ export default function NewPersonPage() {
   // フォーム送信
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nickname.trim()) return;
+    if (!nickname.trim() || !relCategory || !relSubtype) return;
 
     setSubmitting(true);
     try {
       const birthDate = buildBirthDate();
+      // サブタイプのラベルを旧relationshipフィールドにも設定（互換用）
+      const selectedCat = RELATIONSHIP_CATEGORIES.find(c => c.value === relCategory);
+      const selectedSub = selectedCat?.subtypes.find(s => s.value === relSubtype);
+      const legacyRelationship = selectedSub?.label || "その他";
+
       const res = await fetch("/api/persons", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           nickname: nickname.trim(),
-          relationship,
+          relationship: legacyRelationship,
+          relationshipCategory: relCategory || null,
+          relationshipSubtype: relSubtype || null,
+          relationshipDetail: relDetail.trim() || null,
           birthDate: birthDate || null,
           birthYear: birthYear || null,
           gender: gender || null,
@@ -117,25 +127,74 @@ export default function NewPersonPage() {
           />
         </div>
 
-        {/* 関係性タイプ（必須） */}
+        {/* 関係性カテゴリ（必須） */}
         <div className="py-4">
-          <label className="block text-xs text-text-secondary mb-2 tracking-wide">
+          <label className="block text-xs text-text-secondary mb-3 tracking-wide">
             関係性 <span className="text-gold">*</span>
           </label>
-          <select
-            value={relationship}
-            onChange={(e) => setRelationship(e.target.value)}
-            className="input-underline"
-          >
-            {RELATIONSHIP_TYPES.map((type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {RELATIONSHIP_CATEGORIES.map((cat) => (
+              <button
+                key={cat.value}
+                type="button"
+                onClick={() => { setRelCategory(cat.value); setRelSubtype(""); }}
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm transition-all duration-200 ${
+                  relCategory === cat.value
+                    ? "border-gold bg-gold/10 text-gold"
+                    : "border-border-subtle text-text-secondary hover:border-text-muted"
+                }`}
+              >
+                <span className="text-base">{cat.icon}</span>
+                <span className="truncate">{cat.label}</span>
+              </button>
             ))}
-          </select>
+          </div>
         </div>
 
-        <hr className="divider" />
+        {/* サブタイプ選択 */}
+        {relCategory && (
+          <div className="py-4">
+            <label className="block text-xs text-text-secondary mb-3 tracking-wide">
+              具体的な関係 <span className="text-gold">*</span>
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {RELATIONSHIP_CATEGORIES
+                .find(c => c.value === relCategory)
+                ?.subtypes.map((sub) => (
+                  <button
+                    key={sub.value}
+                    type="button"
+                    onClick={() => setRelSubtype(sub.value)}
+                    className={`px-3 py-2 rounded-lg border text-sm transition-all duration-200 ${
+                      relSubtype === sub.value
+                        ? "border-gold bg-gold/10 text-gold"
+                        : "border-border-subtle text-text-secondary hover:border-text-muted"
+                    }`}
+                  >
+                    {sub.label}
+                  </button>
+                ))}
+            </div>
+          </div>
+        )}
+
+        {/* 補足（任意） */}
+        {relSubtype && (
+          <div className="py-4">
+            <label className="block text-xs text-text-secondary mb-2 tracking-wide">
+              補足 <span className="text-text-muted">(任意)</span>
+            </label>
+            <input
+              type="text"
+              value={relDetail}
+              onChange={(e) => setRelDetail(e.target.value)}
+              placeholder="例：母方の叔父、妻の職場の上司など"
+              className="input-underline"
+            />
+          </div>
+        )}
+
+        <div className="h-4" />
 
         {/* 生年月日（任意）- 年/月/日 3分割 */}
         <div className="py-4">
@@ -152,7 +211,7 @@ export default function NewPersonPage() {
           />
         </div>
 
-        <hr className="divider" />
+        <div className="h-4" />
 
         {/* 性別（任意） */}
         <div className="py-4">
@@ -225,7 +284,7 @@ export default function NewPersonPage() {
           </select>
         </div>
 
-        <hr className="divider" />
+        <div className="h-4" />
 
         {/* 生活背景・家族構成（任意） */}
         <div className="py-4">
@@ -245,7 +304,7 @@ export default function NewPersonPage() {
           </div>
         </div>
 
-        <hr className="divider" />
+        <div className="h-4" />
 
         {/* 観察メモ */}
         <div className="py-4">
@@ -287,7 +346,7 @@ export default function NewPersonPage() {
         <div className="flex gap-4 pt-8">
           <button
             type="submit"
-            disabled={submitting || !nickname.trim()}
+            disabled={submitting || !nickname.trim() || !relCategory || !relSubtype}
             className="btn-ghost"
           >
             {submitting ? "登録中..." : "登録する"}

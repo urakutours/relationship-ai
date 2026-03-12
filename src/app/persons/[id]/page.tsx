@@ -6,12 +6,12 @@ import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import type { PersonData, CostInfo, ObservationData, ConsultationLogData, CompressedMemory, ObservationCategory } from "@/lib/types";
 import {
-  RELATIONSHIP_TYPES,
   GENDER_OPTIONS,
   BLOOD_TYPE_OPTIONS,
   BIRTH_ORDER_OPTIONS,
   OBSERVATION_CATEGORIES,
 } from "@/lib/types";
+import { RELATIONSHIP_CATEGORIES, formatRelationshipShort, formatRelationshipLabel } from "@/lib/relationship-types";
 import { BirthDateSelect } from "@/components/birth-date-select";
 
 /** 相性スコアの色を返す */
@@ -86,6 +86,9 @@ export default function PersonDetailPage() {
   const [editMode, setEditMode] = useState(false);
   const [editNickname, setEditNickname] = useState("");
   const [editRelationship, setEditRelationship] = useState("");
+  const [editRelCategory, setEditRelCategory] = useState("");
+  const [editRelSubtype, setEditRelSubtype] = useState("");
+  const [editRelDetail, setEditRelDetail] = useState("");
   const [editBirthYear, setEditBirthYear] = useState("");
   const [editBirthMonth, setEditBirthMonth] = useState("");
   const [editBirthDay, setEditBirthDay] = useState("");
@@ -205,6 +208,9 @@ export default function PersonDetailPage() {
     const bd = parseBirthDate(person.birthDate);
     setEditNickname(person.nickname);
     setEditRelationship(person.relationship);
+    setEditRelCategory(person.relationshipCategory || "");
+    setEditRelSubtype(person.relationshipSubtype || "");
+    setEditRelDetail(person.relationshipDetail || "");
     setEditBirthYear(bd.year || (person.birthYear ? String(person.birthYear) : ""));
     setEditBirthMonth(bd.month);
     setEditBirthDay(bd.day);
@@ -241,7 +247,10 @@ export default function PersonDetailPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           nickname: editNickname.trim(),
-          relationship: editRelationship,
+          relationship: formatRelationshipShort(editRelCategory, editRelSubtype) || editRelationship,
+          relationshipCategory: editRelCategory || null,
+          relationshipSubtype: editRelSubtype || null,
+          relationshipDetail: editRelDetail.trim() || null,
           birthDate: newBirthDate,
           birthYear: editBirthYear || null,
           gender: editGender || null,
@@ -606,7 +615,7 @@ export default function PersonDetailPage() {
       {/* ===== ヘッダーカード / 編集モード ===== */}
       {editMode ? (
         <div className="card space-y-4">
-          <h2 className="font-display text-lg text-gold tracking-wide mb-2">Edit</h2>
+          <h2 className="font-display text-lg text-gold tracking-wide mb-2">編集</h2>
 
           {/* ニックネーム */}
           <div>
@@ -615,13 +624,68 @@ export default function PersonDetailPage() {
               className="input-underline" />
           </div>
 
-          {/* 関係性 */}
+          {/* 関係性カテゴリ */}
           <div>
-            <label className="block text-xs text-text-secondary mb-1">関係性</label>
-            <select value={editRelationship} onChange={(e) => setEditRelationship(e.target.value)} className="input-underline">
-              {RELATIONSHIP_TYPES.map((type) => (<option key={type} value={type}>{type}</option>))}
-            </select>
+            <label className="block text-xs text-text-secondary mb-3 tracking-wide">関係性</label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {RELATIONSHIP_CATEGORIES.map((cat) => (
+                <button
+                  key={cat.value}
+                  type="button"
+                  onClick={() => { setEditRelCategory(cat.value); setEditRelSubtype(""); }}
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm transition-all duration-200 ${
+                    editRelCategory === cat.value
+                      ? "border-gold bg-gold/10 text-gold"
+                      : "border-border-subtle text-text-secondary hover:border-text-muted"
+                  }`}
+                >
+                  <span className="text-base">{cat.icon}</span>
+                  <span className="truncate">{cat.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
+
+          {/* サブタイプ選択 */}
+          {editRelCategory && (
+            <div>
+              <label className="block text-xs text-text-secondary mb-3 tracking-wide">具体的な関係</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {RELATIONSHIP_CATEGORIES
+                  .find(c => c.value === editRelCategory)
+                  ?.subtypes.map((sub) => (
+                    <button
+                      key={sub.value}
+                      type="button"
+                      onClick={() => setEditRelSubtype(sub.value)}
+                      className={`px-3 py-2 rounded-lg border text-sm transition-all duration-200 ${
+                        editRelSubtype === sub.value
+                          ? "border-gold bg-gold/10 text-gold"
+                          : "border-border-subtle text-text-secondary hover:border-text-muted"
+                      }`}
+                    >
+                      {sub.label}
+                    </button>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          {/* 補足（任意） */}
+          {editRelSubtype && (
+            <div>
+              <label className="block text-xs text-text-secondary mb-2 tracking-wide">
+                補足 <span className="text-text-muted">(任意)</span>
+              </label>
+              <input
+                type="text"
+                value={editRelDetail}
+                onChange={(e) => setEditRelDetail(e.target.value)}
+                placeholder="例：母方の叔父、妻の職場の上司など"
+                className="input-underline"
+              />
+            </div>
+          )}
 
           {/* 生年月日 */}
           <div>
@@ -630,7 +694,7 @@ export default function PersonDetailPage() {
               onYearChange={setEditBirthYear} onMonthChange={setEditBirthMonth} onDayChange={setEditBirthDay} />
           </div>
 
-          <hr className="divider !my-2" />
+          <div className="h-2" />
 
           {/* 性別 */}
           <div>
@@ -666,7 +730,7 @@ export default function PersonDetailPage() {
             </select>
           </div>
 
-          <hr className="divider !my-2" />
+          <div className="h-2" />
 
           {/* personalContext */}
           <div>
@@ -680,7 +744,7 @@ export default function PersonDetailPage() {
             </div>
           </div>
 
-          <hr className="divider !my-2" />
+          <div className="h-2" />
 
           {/* 観察メモ */}
           <div>
@@ -724,7 +788,7 @@ export default function PersonDetailPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <h1 className="font-display text-[28px] md:text-[32px] font-light text-gold tracking-wide">{person.nickname}</h1>
-              <span className="inline-block self-start px-2 py-0.5 border border-border-subtle rounded-[4px] text-[12px] text-text-secondary">{person.relationship}</span>
+              <span className="inline-block self-start px-2 py-0.5 border border-border-subtle rounded-[4px] text-[12px] text-text-secondary">{formatRelationshipLabel(person.relationshipCategory, person.relationshipSubtype, person.relationshipDetail) || person.relationship}</span>
             </div>
             <button onClick={enterEditMode}
               className="self-start text-[12px] text-text-secondary hover:text-gold border border-border-subtle hover:border-gold-dim rounded-[4px] px-3 py-1 transition-colors">

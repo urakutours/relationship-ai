@@ -32,6 +32,9 @@ export async function POST(request: NextRequest) {
     const {
       nickname,
       relationship,
+      relationshipCategory,
+      relationshipSubtype,
+      relationshipDetail,
       birthDate,
       birthYear,
       gender,
@@ -43,9 +46,9 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // ニックネームは必須
-    if (!nickname || !relationship) {
+    if (!nickname) {
       return NextResponse.json(
-        { error: "ニックネームと関係性は必須です" },
+        { error: "ニックネームは必須です" },
         { status: 400 }
       );
     }
@@ -53,7 +56,10 @@ export async function POST(request: NextRequest) {
     const person = await prisma.person.create({
       data: {
         nickname,
-        relationship,
+        relationship: relationship || relationshipSubtype || "その他",
+        relationshipCategory: relationshipCategory || null,
+        relationshipSubtype: relationshipSubtype || null,
+        relationshipDetail: relationshipDetail || null,
         birthDate: birthDate || null,
         birthYear: birthYear ? parseInt(birthYear, 10) : null,
         gender: gender || null,
