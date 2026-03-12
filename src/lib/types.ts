@@ -84,6 +84,10 @@ export interface PersonData {
   compatibilityScore: number | null;
   quickNoteUpdatedAt: string | null;
   deepNoteUpdatedAt: string | null;
+  // 圧縮記憶
+  compressedMemory: string | null;
+  memoryUpdatedAt: string | null;
+  consultCount: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -123,8 +127,20 @@ export interface ConsultPayload {
     relationship: string;
     observedTraits: string[];
     divination: DivinationResult;
+    compressedMemory?: CompressedMemory | null;
+    recentConsultations?: { date: string; query: string }[];
   };
   consultationContext: string;
+}
+
+// 圧縮記憶
+export interface CompressedMemory {
+  keyTraits: string[];          // 判明した性格特性（最大5件）
+  successPatterns: string[];    // うまくいったアプローチ（最大5件）
+  failurePatterns: string[];    // 失敗したアプローチ（最大3件）
+  importantContext: string[];   // 重要な文脈メモ（最大3件）
+  lastConsulted: string;        // ISO日付文字列
+  consultCount: number;
 }
 
 // 相談履歴
@@ -134,6 +150,8 @@ export interface ConsultationLogData {
   consultType: string;
   context: string;
   result: string;
+  outcome?: string | null;
+  outcomeRating?: number | null;
   createdAt: string;
   person?: { id: string; nickname: string; relationship: string };
 }

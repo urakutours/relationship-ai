@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { calculateAllDivinations, calcDivinationProfile } from "@/lib/divination";
 import { generateConsultation } from "@/lib/ai/sonnet";
-import type { ConsultPayload, MyselfInfo } from "@/lib/types";
+import { generateCompressedMemory } from "@/lib/ai/compress-memory";
+import type { ConsultPayload, MyselfInfo, CompressedMemory } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,14 +17,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 人物情報とユーザープロフィールを並行取得
-    const [person, userProfile] = await Promise.all([
+    // 人物情報・ユーザープロフィール・直近相談を並行取得
+    const [person, userProfile, recentLogs] = await Promise.all([
       prisma.person.findUnique({
         where: { id: personId },
         include: { observations: true },
       }),
       prisma.userProfile.findUnique({
         where: { id: 1 },
+      }),
+      prisma.consultationLog.findMany({
+        where: { personId },
+        orderBy: { createdAt: "desc" },
+        take: 3,
+        select: { createdAt: true, context: true },
       }),
     ]);
 
@@ -60,6 +67,22 @@ export async function POST(request: NextRequest) {
       };
     }
 
+    // 圧縮記憶のパース
+    let compressedMemory: CompressedMemory | null = null;
+    if (person.compressedMemory) {
+      try {
+        compressedMemory = JSON.parse(person.compressedMemory);
+      } catch {
+        // パース失敗は無視
+      }
+    }
+
+    // 直近相談の整形
+    const recentConsultations = recentLogs.map((l) => ({
+      date: new Date(l.createdAt).toISOString().split("T")[0],
+      query: l.context.slice(0, 30),
+    }));
+
     // ペイロード構築
     const resolvedUserType = consultType === "deep" ? "DEEP" : (userType === "PREMIUM" ? "PREMIUM" : "FREE");
     const payload: ConsultPayload = {
@@ -70,6 +93,8 @@ export async function POST(request: NextRequest) {
         relationship: person.relationship,
         observedTraits: person.observations.map((o) => o.content),
         divination,
+        compressedMemory,
+        recentConsultations,
       },
       consultationContext,
     };
@@ -77,15 +102,47 @@ export async function POST(request: NextRequest) {
     // Sonnet呼び出し
     const result = await generateConsultation(payload);
 
-    // ConsultationLogに保存
-    const log = await prisma.consultationLog.create({
-      data: {
-        personId,
-        consultType: consultType || "standard",
-        context: consultationContext,
-        result: result.actionPlan,
-      },
-    });
+    // ConsultationLogに保存 + consultCountインクリメント
+    const [log] = await Promise.all([
+      prisma.consultationLog.create({
+        data: {
+          personId,
+          consultType: consultType || "standard",
+          context: consultationContext,
+          result: result.actionPlan,
+        },
+      }),
+      prisma.person.update({
+        where: { id: personId },
+        data: { consultCount: { increment: 1 } },
+      }),
+    ]);
+
+    // 5回ごとに圧縮記憶を非同期生成
+    const newCount = person.consultCount + 1;
+    if (newCount % 5 === 0) {
+      // 非同期で実行（レスポンスをブロックしない）
+      (async () => {
+        try {
+          const allLogs = await prisma.consultationLog.findMany({
+            where: { personId },
+            orderBy: { createdAt: "asc" },
+          });
+          const memResult = await generateCompressedMemory(person.nickname, allLogs);
+          if (memResult) {
+            await prisma.person.update({
+              where: { id: personId },
+              data: {
+                compressedMemory: JSON.stringify(memResult.memory),
+                memoryUpdatedAt: new Date(),
+              },
+            });
+          }
+        } catch (error) {
+          console.error("圧縮記憶の自動生成エラー:", error);
+        }
+      })();
+    }
 
     return NextResponse.json({
       actionPlan: result.actionPlan,

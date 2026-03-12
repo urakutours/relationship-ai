@@ -36,7 +36,10 @@ model Person {
   sortOrder   Int?           // 並び替え順序（nullの場合はid順）
 
   // 相談履歴
-  consultations  ConsultationLog[]
+  consultations     ConsultationLog[]
+  compressedMemory  String?   // JSON文字列（圧縮記憶）
+  memoryUpdatedAt   DateTime?
+  consultCount      Int       @default(0)
 
   // 観察メモ（複数追加可）
   observations   Observation[]
@@ -50,6 +53,8 @@ model ConsultationLog {
   consultType   String   // "standard" / "deep"
   context       String   // 相談内容
   result        String   // AI回答
+  outcome       String?  // ユーザーが後から記入する結果メモ
+  outcomeRating Int?     // 1〜5（うまくいったか）
   createdAt     DateTime @default(now())
 }
 

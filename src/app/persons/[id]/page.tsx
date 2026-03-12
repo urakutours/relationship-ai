@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
-import type { PersonData, CostInfo, ObservationData } from "@/lib/types";
+import type { PersonData, CostInfo, ObservationData, ConsultationLogData, CompressedMemory } from "@/lib/types";
 import {
   RELATIONSHIP_TYPES,
   GENDER_OPTIONS,
@@ -44,6 +44,9 @@ export default function PersonDetailPage() {
 
   const [person, setPerson] = useState<PersonData | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // タブ
+  const [activeTab, setActiveTab] = useState<"notes" | "history">("notes");
 
   // ノート関連
   const [quickAnalyzing, setQuickAnalyzing] = useState(false);
@@ -88,6 +91,19 @@ export default function PersonDetailPage() {
   const [countdown, setCountdown] = useState(3);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // 相談履歴タブ
+  const [consultLogs, setConsultLogs] = useState<ConsultationLogData[]>([]);
+  const [logsLoading, setLogsLoading] = useState(false);
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+  const [compressing, setCompressing] = useState(false);
+  const [compressMessage, setCompressMessage] = useState<string | null>(null);
+
+  // 結果記録モーダル
+  const [outcomeLogId, setOutcomeLogId] = useState<string | null>(null);
+  const [outcomeRating, setOutcomeRating] = useState(0);
+  const [outcomeText, setOutcomeText] = useState("");
+  const [outcomeSaving, setOutcomeSaving] = useState(false);
+
   // 人物データを取得
   const fetchPerson = useCallback(async () => {
     try {
@@ -125,6 +141,29 @@ export default function PersonDetailPage() {
   const stopPolling = () => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   };
+
+  // 相談履歴取得
+  const fetchConsultLogs = useCallback(async () => {
+    setLogsLoading(true);
+    try {
+      const res = await fetch(`/api/consultations?personId=${id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setConsultLogs(data.logs);
+      }
+    } catch (err) {
+      console.error("相談履歴取得エラー:", err);
+    } finally {
+      setLogsLoading(false);
+    }
+  }, [id]);
+
+  // タブ切り替え時に履歴を取得
+  useEffect(() => {
+    if (activeTab === "history") {
+      fetchConsultLogs();
+    }
+  }, [activeTab, fetchConsultLogs]);
 
   // ===== 編集モード開始 =====
   const enterEditMode = () => {
@@ -364,6 +403,74 @@ export default function PersonDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showDeepCountdown, countdown]);
 
+  // ===== 圧縮記憶 =====
+  const compressMemory = async () => {
+    setCompressing(true);
+    setCompressMessage(null);
+    try {
+      const res = await fetch(`/api/persons/${id}/compress-memory`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setCompressMessage("記憶を整理しました");
+        // person のcompressedMemory を更新
+        setPerson((prev) => prev ? {
+          ...prev,
+          compressedMemory: JSON.stringify(data.memory),
+          memoryUpdatedAt: new Date().toISOString(),
+        } : prev);
+        setTimeout(() => setCompressMessage(null), 3000);
+      } else {
+        setCompressMessage(data.error || "整理に失敗しました");
+      }
+    } catch {
+      setCompressMessage("エラーが発生しました");
+    } finally {
+      setCompressing(false);
+    }
+  };
+
+  // ===== 結果記録 =====
+  const openOutcomeModal = (logId: string) => {
+    setOutcomeLogId(logId);
+    setOutcomeRating(0);
+    setOutcomeText("");
+    setOutcomeSaving(false);
+  };
+
+  const closeOutcomeModal = () => {
+    setOutcomeLogId(null);
+  };
+
+  const saveOutcome = async () => {
+    if (!outcomeLogId || outcomeRating === 0) return;
+    setOutcomeSaving(true);
+    try {
+      const res = await fetch(`/api/consultations/${outcomeLogId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outcome: outcomeText.trim() || null,
+          outcomeRating,
+        }),
+      });
+      if (res.ok) {
+        // ローカルstate更新
+        setConsultLogs((prev) =>
+          prev.map((l) =>
+            l.id === outcomeLogId
+              ? { ...l, outcome: outcomeText.trim() || null, outcomeRating }
+              : l
+          )
+        );
+        closeOutcomeModal();
+      }
+    } catch {
+      alert("保存に失敗しました");
+    } finally {
+      setOutcomeSaving(false);
+    }
+  };
+
   // 日付フォーマット
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return null;
@@ -373,12 +480,24 @@ export default function PersonDetailPage() {
     } catch { return null; }
   };
 
+  const formatShortDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return `${d.getMonth() + 1}/${d.getDate()}`;
+  };
+
   const formatBirthDate = (bd: string | null) => {
     if (!bd) return null;
     const parts = bd.split("-");
     if (parts.length === 3) return `${parts[0]}年${parseInt(parts[1])}月${parseInt(parts[2])}日`;
     return bd;
   };
+
+  // 圧縮記憶のパース
+  const parsedMemory: CompressedMemory | null = (() => {
+    if (!person?.compressedMemory) return null;
+    try { return JSON.parse(person.compressedMemory); }
+    catch { return null; }
+  })();
 
   if (loading) {
     return (<div className="flex justify-center py-16"><p className="text-text-muted text-sm">読み込み中...</p></div>);
@@ -538,105 +657,285 @@ export default function PersonDetailPage() {
         </button>
       )}
 
-      {/* ===== クイック分析 ===== */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display text-lg text-gold tracking-wide">Quick Analysis</h2>
-          <div className="flex items-center gap-3">
-            {person.quickNoteUpdatedAt && <span className="text-[11px] text-text-muted">{formatDate(person.quickNoteUpdatedAt)}</span>}
-            <button onClick={runQuickAnalysis} disabled={quickAnalyzing} className="text-[12px] text-text-secondary hover:text-gold transition-colors disabled:opacity-40">
-              {quickAnalyzing ? "まとめています..." : "更新する"}
-            </button>
-          </div>
+      {/* ===== タブ ===== */}
+      {!editMode && (
+        <div className="flex border-b border-border-subtle">
+          <button
+            onClick={() => setActiveTab("notes")}
+            className={`px-4 py-2 text-sm transition-colors ${
+              activeTab === "notes"
+                ? "text-gold border-b-2 border-gold"
+                : "text-text-muted hover:text-text-secondary"
+            }`}
+          >
+            ノート
+          </button>
+          <button
+            onClick={() => setActiveTab("history")}
+            className={`px-4 py-2 text-sm transition-colors ${
+              activeTab === "history"
+                ? "text-gold border-b-2 border-gold"
+                : "text-text-muted hover:text-text-secondary"
+            }`}
+          >
+            相談履歴
+            {person.consultCount > 0 && (
+              <span className="ml-1.5 text-[10px] text-text-muted">({person.consultCount})</span>
+            )}
+          </button>
         </div>
+      )}
 
-        {quickAnalyzing ? (
-          <div className="flex items-center justify-center py-8 gap-3">
-            <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-            <span className="text-text-muted text-sm">まとめています...</span>
-          </div>
-        ) : person.quickNote ? (
-          <>
-            {score !== null && (
-              <div className="mb-5">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-text-secondary text-sm">相性スコア</span>
-                  <span className="font-display text-xl font-semibold" style={{ color: getScoreColor(score) }}>
-                    {score}<span className="text-sm text-text-muted">/100</span>
-                  </span>
+      {/* ===== ノートタブ ===== */}
+      {!editMode && activeTab === "notes" && (
+        <>
+          {/* クイック分析 */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-display text-lg text-gold tracking-wide">Quick Analysis</h2>
+              <div className="flex items-center gap-3">
+                {person.quickNoteUpdatedAt && <span className="text-[11px] text-text-muted">{formatDate(person.quickNoteUpdatedAt)}</span>}
+                <button onClick={runQuickAnalysis} disabled={quickAnalyzing} className="text-[12px] text-text-secondary hover:text-gold transition-colors disabled:opacity-40">
+                  {quickAnalyzing ? "まとめています..." : "更新する"}
+                </button>
+              </div>
+            </div>
+
+            {quickAnalyzing ? (
+              <div className="flex items-center justify-center py-8 gap-3">
+                <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+                <span className="text-text-muted text-sm">まとめています...</span>
+              </div>
+            ) : person.quickNote ? (
+              <>
+                {score !== null && (
+                  <div className="mb-5">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-text-secondary text-sm">相性スコア</span>
+                      <span className="font-display text-xl font-semibold" style={{ color: getScoreColor(score) }}>
+                        {score}<span className="text-sm text-text-muted">/100</span>
+                      </span>
+                    </div>
+                    <div className="w-full h-2 bg-surface-hover rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${score}%`, backgroundColor: getScoreColor(score) }} />
+                    </div>
+                  </div>
+                )}
+                <div className="markdown-body text-sm">
+                  <ReactMarkdown>{person.quickNote.split("\n").filter((l) => !l.match(/^相性スコア[：:]/)).join("\n")}</ReactMarkdown>
                 </div>
-                <div className="w-full h-2 bg-surface-hover rounded-full overflow-hidden">
-                  <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${score}%`, backgroundColor: getScoreColor(score) }} />
-                </div>
+              </>
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-text-muted text-sm mb-3">まだ分析が実行されていません</p>
+                <button onClick={runQuickAnalysis} className="btn-ghost text-sm">概要をまとめる</button>
               </div>
             )}
-            <div className="markdown-body text-sm">
-              <ReactMarkdown>{person.quickNote.split("\n").filter((l) => !l.match(/^相性スコア[：:]/)).join("\n")}</ReactMarkdown>
-            </div>
-          </>
-        ) : (
-          <div className="text-center py-6">
-            <p className="text-text-muted text-sm mb-3">まだ分析が実行されていません</p>
-            <button onClick={runQuickAnalysis} className="btn-ghost text-sm">概要をまとめる</button>
           </div>
-        )}
-      </div>
 
-      {/* ===== 深掘り分析 ===== */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="font-display text-lg text-jade tracking-wide">Deep Analysis</h2>
-          {person.deepNoteUpdatedAt && <span className="text-[11px] text-text-muted">{formatDate(person.deepNoteUpdatedAt)}</span>}
-        </div>
-        {deepAnalyzing ? (
-          <div className="flex items-center justify-center py-10 gap-3">
-            <div className="w-5 h-5 border-2 border-jade border-t-transparent rounded-full animate-spin" />
-            <span className="text-text-muted text-sm">詳しく分析しています... 少々お待ちください</span>
-          </div>
-        ) : person.deepNote ? (
-          <>
-            <div className="markdown-body text-sm">
-              <ReactMarkdown>{person.deepNote}</ReactMarkdown>
+          {/* 深掘り分析 */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-display text-lg text-jade tracking-wide">Deep Analysis</h2>
+              {person.deepNoteUpdatedAt && <span className="text-[11px] text-text-muted">{formatDate(person.deepNoteUpdatedAt)}</span>}
             </div>
-            {deepTruncated && (
-              <div className="mt-3">
-                <button
-                  onClick={continueDeepAnalysis}
-                  disabled={continuingDeep}
-                  className="text-[12px] text-jade hover:text-gold transition-colors disabled:opacity-40 flex items-center gap-1.5"
-                >
-                  {continuingDeep ? (
-                    <>
-                      <span className="w-3 h-3 border border-jade border-t-transparent rounded-full animate-spin" />
-                      続きを生成中...
-                    </>
-                  ) : (
-                    "続きを読む →"
-                  )}
+            {deepAnalyzing ? (
+              <div className="flex items-center justify-center py-10 gap-3">
+                <div className="w-5 h-5 border-2 border-jade border-t-transparent rounded-full animate-spin" />
+                <span className="text-text-muted text-sm">詳しく分析しています... 少々お待ちください</span>
+              </div>
+            ) : person.deepNote ? (
+              <>
+                <div className="markdown-body text-sm">
+                  <ReactMarkdown>{person.deepNote}</ReactMarkdown>
+                </div>
+                {deepTruncated && (
+                  <div className="mt-3">
+                    <button
+                      onClick={continueDeepAnalysis}
+                      disabled={continuingDeep}
+                      className="text-[12px] text-jade hover:text-gold transition-colors disabled:opacity-40 flex items-center gap-1.5"
+                    >
+                      {continuingDeep ? (
+                        <>
+                          <span className="w-3 h-3 border border-jade border-t-transparent rounded-full animate-spin" />
+                          続きを生成中...
+                        </>
+                      ) : (
+                        "続きを読む →"
+                      )}
+                    </button>
+                  </div>
+                )}
+                <div className="mt-4 pt-4 border-t border-border-subtle">
+                  <button onClick={runDeepAnalysis} className="text-[12px] text-text-secondary hover:text-jade transition-colors">更新する</button>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-6">
+                <p className="text-text-muted text-sm mb-1">より詳しい分析を実行できます</p>
+                <p className="text-text-muted text-[11px] mb-4">少し時間がかかります</p>
+                <button onClick={runDeepAnalysis} disabled={deepAnalyzing}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 border border-jade-dim text-jade bg-transparent rounded-[4px] text-sm hover:bg-jade hover:text-base transition-all duration-300 disabled:opacity-40">
+                  <span className="text-lg leading-none">🔍</span>
+                  詳しく分析する
                 </button>
               </div>
             )}
-            <div className="mt-4 pt-4 border-t border-border-subtle">
-              <button onClick={runDeepAnalysis} className="text-[12px] text-text-secondary hover:text-jade transition-colors">更新する</button>
-            </div>
-          </>
-        ) : (
-          <div className="text-center py-6">
-            <p className="text-text-muted text-sm mb-1">より詳しい分析を実行できます</p>
-            <p className="text-text-muted text-[11px] mb-4">少し時間がかかります</p>
-            <button onClick={runDeepAnalysis} disabled={deepAnalyzing}
-              className="inline-flex items-center gap-2 px-6 py-2.5 border border-jade-dim text-jade bg-transparent rounded-[4px] text-sm hover:bg-jade hover:text-base transition-all duration-300 disabled:opacity-40">
-              <span className="text-lg leading-none">🔍</span>
-              詳しく分析する
-            </button>
           </div>
-        )}
-      </div>
 
-      {/* コスト情報 */}
-      {costInfo && (
-        <div className="text-[11px] text-text-muted bg-surface-hover rounded px-3 py-2 font-mono">
-          入力: {costInfo.inputTokens} | 出力: {costInfo.outputTokens} | キャッシュ読: {costInfo.cacheReadTokens} | キャッシュ作成: {costInfo.cacheCreationTokens} | 推定コスト: ¥{costInfo.estimatedCostJPY.toFixed(4)}
+          {/* コスト情報 */}
+          {costInfo && (
+            <div className="text-[11px] text-text-muted bg-surface-hover rounded px-3 py-2 font-mono">
+              入力: {costInfo.inputTokens} | 出力: {costInfo.outputTokens} | キャッシュ読: {costInfo.cacheReadTokens} | キャッシュ作成: {costInfo.cacheCreationTokens} | 推定コスト: ¥{costInfo.estimatedCostJPY.toFixed(4)}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ===== 相談履歴タブ ===== */}
+      {!editMode && activeTab === "history" && (
+        <div className="space-y-4">
+          {/* 圧縮記憶サマリー */}
+          {parsedMemory && (
+            <div className="card !py-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm text-gold">学習済みパターン</h3>
+                {person.memoryUpdatedAt && (
+                  <span className="text-[10px] text-text-muted">
+                    最終更新: {formatDate(person.memoryUpdatedAt)}
+                  </span>
+                )}
+              </div>
+              {parsedMemory.successPatterns.length > 0 && (
+                <div className="mb-2">
+                  <p className="text-[11px] text-text-muted mb-1">成功パターン</p>
+                  <div className="space-y-0.5">
+                    {parsedMemory.successPatterns.map((p, i) => (
+                      <p key={i} className="text-xs text-text-secondary pl-3 relative">
+                        <span className="absolute left-0 text-jade">▸</span>{p}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {parsedMemory.failurePatterns.length > 0 && (
+                <div className="mb-2">
+                  <p className="text-[11px] text-text-muted mb-1">注意パターン</p>
+                  <div className="space-y-0.5">
+                    {parsedMemory.failurePatterns.map((p, i) => (
+                      <p key={i} className="text-xs text-text-secondary pl-3 relative">
+                        <span className="absolute left-0 text-danger">▸</span>{p}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 記憶を整理するボタン */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={compressMemory}
+              disabled={compressing || consultLogs.length === 0}
+              className="btn-ghost text-xs"
+            >
+              {compressing ? "整理中..." : "記憶を整理する"}
+            </button>
+            {compressMessage && (
+              <span className="text-xs text-jade">{compressMessage}</span>
+            )}
+          </div>
+
+          {/* 履歴一覧 */}
+          {logsLoading ? (
+            <div className="flex justify-center py-8">
+              <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : consultLogs.length === 0 ? (
+            <div className="card text-center py-8">
+              <p className="text-text-muted text-sm">相談履歴はまだありません</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {consultLogs.map((log) => {
+                const isExpanded = expandedLogId === log.id;
+                return (
+                  <div key={log.id} className="card !py-0 overflow-hidden">
+                    {/* ヘッダー行 */}
+                    <div
+                      onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
+                      className="w-full flex items-center gap-3 py-3 px-0 text-left group cursor-pointer"
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === "Enter" && setExpandedLogId(isExpanded ? null : log.id)}
+                    >
+                      <span className={`text-text-muted text-xs transition-transform duration-200 ${isExpanded ? "rotate-90" : ""}`}>▸</span>
+                      <span className="text-text-muted text-[11px] shrink-0">{formatShortDate(log.createdAt)}</span>
+                      <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] border ${
+                        log.consultType === "deep" ? "border-jade/30 text-jade" : "border-border-subtle text-text-secondary"
+                      }`}>
+                        {log.consultType === "deep" ? "Deep" : "Standard"}
+                      </span>
+                      <span className="flex-1 text-text-muted text-xs truncate min-w-0">
+                        {log.context.slice(0, 40)}
+                      </span>
+                      {log.outcomeRating && (
+                        <span className="text-gold text-xs shrink-0">
+                          {"★".repeat(log.outcomeRating)}{"☆".repeat(5 - log.outcomeRating)}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* 展開コンテンツ */}
+                    {isExpanded && (
+                      <div className="pb-4 pt-1 border-t border-border-subtle">
+                        <div className="mb-3">
+                          <p className="text-[11px] text-text-muted mb-1">相談内容</p>
+                          <p className="text-sm text-text-secondary">{log.context}</p>
+                        </div>
+                        <div className="relative">
+                          <div className={`absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent ${
+                            log.consultType === "deep" ? "via-jade-dim" : "via-gold-dim"
+                          } to-transparent`} />
+                          <div className="py-3">
+                            <div className="markdown-body text-[13px]">
+                              <ReactMarkdown>{log.result}</ReactMarkdown>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 結果記録 */}
+                        {log.outcomeRating ? (
+                          <div className="mt-2 pt-2 border-t border-border-subtle">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[11px] text-text-muted">結果:</span>
+                              <span className="text-gold text-sm">
+                                {"★".repeat(log.outcomeRating)}{"☆".repeat(5 - log.outcomeRating)}
+                              </span>
+                            </div>
+                            {log.outcome && (
+                              <p className="text-xs text-text-secondary mt-1">{log.outcome}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="mt-2 pt-2 border-t border-border-subtle">
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openOutcomeModal(log.id); }}
+                              className="text-xs text-jade hover:text-gold transition-colors"
+                            >
+                              結果を記録
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -656,6 +955,15 @@ export default function PersonDetailPage() {
             <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
               {!consultResult ? (
                 <>
+                  {/* 相談データバッジ */}
+                  {person.consultCount > 0 && (
+                    <div className="flex items-center gap-2 text-[11px] text-text-muted">
+                      <span className="px-1.5 py-0.5 border border-jade/20 rounded text-jade">
+                        過去{person.consultCount}回の相談データあり
+                      </span>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-xs text-text-secondary mb-2">相談内容</label>
                     <textarea
@@ -714,7 +1022,15 @@ export default function PersonDetailPage() {
                   </div>
 
                   {consultSaved && (
-                    <p className="text-jade text-xs">保存しました。履歴で確認できます。</p>
+                    <div className="bg-surface-hover rounded px-3 py-2 space-y-1">
+                      <p className="text-jade text-xs">この相談を保存しました</p>
+                      <button
+                        onClick={() => { closeConsultModal(); setActiveTab("history"); fetchConsultLogs(); }}
+                        className="text-xs text-text-muted hover:text-gold transition-colors"
+                      >
+                        {person.nickname}さんの相談履歴を見る →
+                      </button>
+                    </div>
                   )}
 
                   {consultCostInfo && (
@@ -747,6 +1063,53 @@ export default function PersonDetailPage() {
                   className="flex-1 py-2.5 text-text-secondary text-sm hover:text-text-primary transition-colors">閉じる</button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ===== 結果記録モーダル ===== */}
+      {outcomeLogId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) closeOutcomeModal(); }}>
+          <div className="bg-surface border border-border rounded-lg w-full max-w-sm mx-4">
+            <div className="px-6 pt-5 pb-3 border-b border-border-subtle">
+              <h3 className="text-sm text-text-primary">この相談の結果を記録</h3>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <div>
+                <p className="text-xs text-text-secondary mb-2">うまくいきましたか？</p>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => setOutcomeRating(star)}
+                      className={`text-2xl transition-colors ${
+                        star <= outcomeRating ? "text-gold" : "text-text-muted"
+                      }`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-text-secondary mb-1">メモ（任意）</label>
+                <textarea
+                  value={outcomeText}
+                  onChange={(e) => setOutcomeText(e.target.value)}
+                  rows={3}
+                  placeholder="どうなったか、感じたことなど"
+                  className="w-full bg-transparent border border-border-subtle rounded px-3 py-2 text-text-primary text-sm outline-none resize-none placeholder:text-text-muted focus:border-gold transition-colors"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 px-6 pb-5 pt-2 border-t border-border-subtle">
+              <button onClick={closeOutcomeModal}
+                className="flex-1 py-2 text-text-muted text-sm hover:text-text-secondary transition-colors">キャンセル</button>
+              <button onClick={saveOutcome} disabled={outcomeRating === 0 || outcomeSaving}
+                className="btn-ghost flex-1 text-sm py-2">
+                {outcomeSaving ? "保存中..." : "保存"}
+              </button>
+            </div>
           </div>
         </div>
       )}

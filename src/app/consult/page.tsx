@@ -20,6 +20,12 @@ export default function ConsultHistoryPage() {
   // IntersectionObserver用
   const sentinelRef = useRef<HTMLDivElement>(null);
 
+  // 結果記録モーダル
+  const [outcomeLogId, setOutcomeLogId] = useState<string | null>(null);
+  const [outcomeRating, setOutcomeRating] = useState(0);
+  const [outcomeText, setOutcomeText] = useState("");
+  const [outcomeSaving, setOutcomeSaving] = useState(false);
+
   // 人物一覧取得
   useEffect(() => {
     fetch("/api/persons")
@@ -87,6 +93,48 @@ export default function ConsultHistoryPage() {
       setLogs((prev) => prev.filter((l) => l.id !== logId));
     } catch (error) {
       console.error("削除エラー:", error);
+    }
+  };
+
+  // 結果記録
+  const openOutcomeModal = (e: React.MouseEvent, logId: string) => {
+    e.stopPropagation();
+    setOutcomeLogId(logId);
+    setOutcomeRating(0);
+    setOutcomeText("");
+    setOutcomeSaving(false);
+  };
+
+  const closeOutcomeModal = () => {
+    setOutcomeLogId(null);
+  };
+
+  const saveOutcome = async () => {
+    if (!outcomeLogId || outcomeRating === 0) return;
+    setOutcomeSaving(true);
+    try {
+      const res = await fetch(`/api/consultations/${outcomeLogId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          outcome: outcomeText.trim() || null,
+          outcomeRating,
+        }),
+      });
+      if (res.ok) {
+        setLogs((prev) =>
+          prev.map((l) =>
+            l.id === outcomeLogId
+              ? { ...l, outcome: outcomeText.trim() || null, outcomeRating }
+              : l
+          )
+        );
+        closeOutcomeModal();
+      }
+    } catch {
+      alert("保存に失敗しました");
+    } finally {
+      setOutcomeSaving(false);
     }
   };
 
@@ -181,6 +229,13 @@ export default function ConsultHistoryPage() {
                     {log.context}
                   </span>
 
+                  {/* 星評価 */}
+                  {log.outcomeRating && (
+                    <span className="text-gold text-[11px] shrink-0 hidden sm:inline">
+                      {"★".repeat(log.outcomeRating)}
+                    </span>
+                  )}
+
                   {/* 日時 */}
                   <span className="text-text-muted text-[11px] shrink-0 hidden sm:inline">
                     {formatDate(log.createdAt)}
@@ -229,6 +284,30 @@ export default function ConsultHistoryPage() {
                       </div>
                     </div>
 
+                    {/* 結果記録 */}
+                    {log.outcomeRating ? (
+                      <div className="mt-2 pt-2 border-t border-border-subtle">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] text-text-muted">結果:</span>
+                          <span className="text-gold text-sm">
+                            {"★".repeat(log.outcomeRating)}{"☆".repeat(5 - log.outcomeRating)}
+                          </span>
+                        </div>
+                        {log.outcome && (
+                          <p className="text-xs text-text-secondary mt-1">{log.outcome}</p>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="mt-2 pt-2 border-t border-border-subtle flex items-center gap-3">
+                        <button
+                          onClick={(e) => openOutcomeModal(e, log.id)}
+                          className="text-xs text-jade hover:text-gold transition-colors"
+                        >
+                          結果を記録
+                        </button>
+                      </div>
+                    )}
+
                     {/* 削除（モバイル用） */}
                     <button
                       onClick={(e) => handleDelete(e, log.id)}
@@ -250,6 +329,53 @@ export default function ConsultHistoryPage() {
               <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
             </div>
           )}
+        </div>
+      )}
+
+      {/* 結果記録モーダル */}
+      {outcomeLogId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) closeOutcomeModal(); }}>
+          <div className="bg-surface border border-border rounded-lg w-full max-w-sm mx-4">
+            <div className="px-6 pt-5 pb-3 border-b border-border-subtle">
+              <h3 className="text-sm text-text-primary">この相談の結果を記録</h3>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <div>
+                <p className="text-xs text-text-secondary mb-2">うまくいきましたか？</p>
+                <div className="flex gap-1">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => setOutcomeRating(star)}
+                      className={`text-2xl transition-colors ${
+                        star <= outcomeRating ? "text-gold" : "text-text-muted"
+                      }`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-text-secondary mb-1">メモ（任意）</label>
+                <textarea
+                  value={outcomeText}
+                  onChange={(e) => setOutcomeText(e.target.value)}
+                  rows={3}
+                  placeholder="どうなったか、感じたことなど"
+                  className="w-full bg-transparent border border-border-subtle rounded px-3 py-2 text-text-primary text-sm outline-none resize-none placeholder:text-text-muted focus:border-gold transition-colors"
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 px-6 pb-5 pt-2 border-t border-border-subtle">
+              <button onClick={closeOutcomeModal}
+                className="flex-1 py-2 text-text-muted text-sm hover:text-text-secondary transition-colors">キャンセル</button>
+              <button onClick={saveOutcome} disabled={outcomeRating === 0 || outcomeSaving}
+                className="btn-ghost flex-1 text-sm py-2">
+                {outcomeSaving ? "保存中..." : "保存"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

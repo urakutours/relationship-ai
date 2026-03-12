@@ -65,6 +65,29 @@ export async function generateConsultation(
 `;
   }
 
+  // 圧縮記憶セクションの構築
+  let compressedMemorySection = "";
+  if (target.compressedMemory) {
+    const cm = target.compressedMemory;
+    compressedMemorySection = `
+## 過去の相談から判明した情報
+性格特性: ${cm.keyTraits.length > 0 ? cm.keyTraits.join("、") : "なし"}
+成功パターン: ${cm.successPatterns.length > 0 ? cm.successPatterns.join("、") : "なし"}
+失敗パターン: ${cm.failurePatterns.length > 0 ? cm.failurePatterns.join("、") : "なし"}
+重要な文脈: ${cm.importantContext.length > 0 ? cm.importantContext.join("、") : "なし"}
+過去の相談回数: ${cm.consultCount}回
+`;
+  }
+
+  // 直近の相談履歴セクション
+  let recentSection = "";
+  if (target.recentConsultations && target.recentConsultations.length > 0) {
+    recentSection = `
+## 直近の相談
+${target.recentConsultations.map((c) => `- ${c.date}: ${c.query}`).join("\n")}
+`;
+  }
+
   // ユーザーメッセージの構築
   const userMessage = `${myselfSection}
 ## target（相談相手）
@@ -80,7 +103,7 @@ export async function generateConsultation(
       ? `木${target.divination.wuxingProfile.wood} 火${target.divination.wuxingProfile.fire} 土${target.divination.wuxingProfile.earth} 金${target.divination.wuxingProfile.metal} 水${target.divination.wuxingProfile.water}`
       : "不明"
   }
-
+${compressedMemorySection}${recentSection}
 ## consultationContext（相談内容）
 ${consultationContext}
 `;
