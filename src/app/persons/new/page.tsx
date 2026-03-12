@@ -7,7 +7,7 @@ import {
   BLOOD_TYPE_OPTIONS,
   BIRTH_ORDER_OPTIONS,
   CONTACT_FREQUENCY_OPTIONS,
-  MBTI_TYPES,
+  MBTI_TYPES_DATA,
   MARITAL_STATUS_OPTIONS,
   HAS_CHILDREN_OPTIONS,
 } from "@/lib/types";
@@ -408,18 +408,20 @@ export default function NewPersonPage() {
             MBTI <span className="text-text-muted">(任意)</span>
           </label>
           <div className="grid grid-cols-4 gap-1.5">
-            {MBTI_TYPES.map((type) => (
+            {MBTI_TYPES_DATA.map((type) => (
               <button
-                key={type}
+                key={type.code}
                 type="button"
-                onClick={() => setMbti(mbti === type ? "" : type)}
-                className={`px-2 py-1.5 rounded border text-xs font-mono transition-all duration-200 ${
-                  mbti === type
+                onClick={() => setMbti(mbti === type.code ? "" : type.code)}
+                className={`px-2 py-1.5 rounded border text-xs transition-all duration-200 text-left ${
+                  mbti === type.code
                     ? "border-gold bg-gold/10 text-gold"
                     : "border-border-subtle text-text-secondary hover:border-text-muted"
                 }`}
+                title={`${type.name} — ${type.desc}`}
               >
-                {type}
+                <span className="font-mono">{type.code}</span>
+                <span className="block text-[10px] text-text-muted mt-0.5 truncate">{type.desc}</span>
               </button>
             ))}
           </div>

@@ -11,7 +11,7 @@ import {
   BIRTH_ORDER_OPTIONS,
   OBSERVATION_CATEGORIES,
   CONTACT_FREQUENCY_OPTIONS,
-  MBTI_TYPES,
+  MBTI_TYPES_DATA,
   MARITAL_STATUS_OPTIONS,
   HAS_CHILDREN_OPTIONS,
 } from "@/lib/types";
@@ -957,11 +957,15 @@ export default function PersonDetailPage() {
           <div>
             <label className="block text-xs text-text-secondary mb-1">MBTI</label>
             <div className="grid grid-cols-4 gap-1.5">
-              {MBTI_TYPES.map((type) => (
-                <button key={type} type="button" onClick={() => setEditMbti(editMbti === type ? "" : type)}
-                  className={`px-2 py-1.5 rounded border text-xs font-mono transition-all ${
-                    editMbti === type ? "border-gold bg-gold/10 text-gold" : "border-border-subtle text-text-secondary hover:border-text-muted"
-                  }`}>{type}</button>
+              {MBTI_TYPES_DATA.map((type) => (
+                <button key={type.code} type="button" onClick={() => setEditMbti(editMbti === type.code ? "" : type.code)}
+                  className={`px-2 py-1.5 rounded border text-xs transition-all text-left ${
+                    editMbti === type.code ? "border-gold bg-gold/10 text-gold" : "border-border-subtle text-text-secondary hover:border-text-muted"
+                  }`}
+                  title={`${type.name} — ${type.desc}`}>
+                  <span className="font-mono">{type.code}</span>
+                  <span className="block text-[10px] text-text-muted mt-0.5 truncate">{type.desc}</span>
+                </button>
               ))}
             </div>
             <button type="button" onClick={() => setEditMbti(editMbti === "unknown" ? "" : "unknown")}
@@ -1258,11 +1262,14 @@ export default function PersonDetailPage() {
               <div className="py-1">
                 <label className="block text-xs text-text-secondary mb-1">MBTI</label>
                 <div className="grid grid-cols-4 gap-1">
-                  {MBTI_TYPES.map((type) => (
-                    <button key={type} type="button" onClick={() => setEditMbti(editMbti === type ? "" : type)}
-                      className={`px-1.5 py-1 rounded border text-[11px] font-mono transition-all ${
-                        editMbti === type ? "border-gold bg-gold/10 text-gold" : "border-border-subtle text-text-secondary hover:border-text-muted"
-                      }`}>{type}</button>
+                  {MBTI_TYPES_DATA.map((type) => (
+                    <button key={type.code} type="button" onClick={() => setEditMbti(editMbti === type.code ? "" : type.code)}
+                      className={`px-1.5 py-1 rounded border text-[11px] transition-all text-left ${
+                        editMbti === type.code ? "border-gold bg-gold/10 text-gold" : "border-border-subtle text-text-secondary hover:border-text-muted"
+                      }`}
+                      title={`${type.name} — ${type.desc}`}>
+                      <span className="font-mono">{type.code}</span>
+                    </button>
                   ))}
                 </div>
                 <button type="button" onClick={() => setEditMbti(editMbti === "unknown" ? "" : "unknown")}

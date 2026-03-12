@@ -3,7 +3,9 @@
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import type { CostInfo } from "@/lib/types";
+import { MBTI_TYPES_DATA } from "@/lib/types";
 import { BirthDateSelect } from "@/components/birth-date-select";
+import { CountrySelect } from "@/components/country-select";
 
 // 性別の選択肢（内部値→表示ラベル）
 const GENDER_OPTIONS = [
@@ -56,6 +58,7 @@ export default function ProfilePage() {
   const [deepTruncated, setDeepTruncated] = useState(false);
   const [deepTruncatedContext, setDeepTruncatedContext] = useState<string | null>(null);
   const [continuingDeep, setContinuingDeep] = useState(false);
+  const [debugMode, setDebugMode] = useState(false);
 
   // ポーリング用
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -65,6 +68,12 @@ export default function ProfilePage() {
     if (!birthYear || !birthMonth || !birthDay) return null;
     return `${birthYear.padStart(4, "0")}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}`;
   };
+
+  // debug パラメータ検出
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setDebugMode(params.get("debug") === "true");
+  }, []);
 
   // プロフィール読み込み
   useEffect(() => {
@@ -277,14 +286,42 @@ export default function ProfilePage() {
 
             <div className="py-4">
               <label className="block text-xs text-text-secondary mb-2 tracking-wide">出身国 <span className="text-text-muted">(任意)</span></label>
-              <input type="text" value={birthCountry} onChange={(e) => setBirthCountry(e.target.value)} placeholder="JP" className="input-underline" />
+              <CountrySelect value={birthCountry} onChange={setBirthCountry} />
             </div>
 
             <div className="h-4" />
 
             <div className="py-4">
-              <label className="block text-xs text-text-secondary mb-2 tracking-wide">MBTI <span className="text-text-muted">(任意)</span></label>
-              <input type="text" value={mbti} onChange={(e) => setMbti(e.target.value)} placeholder="例: INTJ" maxLength={4} className="input-underline uppercase" />
+              <label className="block text-xs text-text-secondary mb-3 tracking-wide">MBTI <span className="text-text-muted">(任意)</span></label>
+              <div className="grid grid-cols-4 gap-1.5">
+                {MBTI_TYPES_DATA.map((type) => (
+                  <button
+                    key={type.code}
+                    type="button"
+                    onClick={() => setMbti(mbti === type.code ? "" : type.code)}
+                    className={`px-2 py-1.5 rounded border text-xs transition-all duration-200 text-left ${
+                      mbti === type.code
+                        ? "border-gold bg-gold/10 text-gold"
+                        : "border-border-subtle text-text-secondary hover:border-text-muted"
+                    }`}
+                    title={`${type.name} — ${type.desc}`}
+                  >
+                    <span className="font-mono">{type.code}</span>
+                    <span className="block text-[10px] text-text-muted mt-0.5 truncate">{type.desc}</span>
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setMbti(mbti === "unknown" ? "" : "unknown")}
+                className={`mt-2 px-3 py-1.5 rounded border text-xs transition-all duration-200 ${
+                  mbti === "unknown"
+                    ? "border-gold bg-gold/10 text-gold"
+                    : "border-border-subtle text-text-secondary hover:border-text-muted"
+                }`}
+              >
+                わからない
+              </button>
             </div>
 
             <div className="py-4">
@@ -392,8 +429,8 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* コスト情報 */}
-        {analysisCostInfo && (
+        {/* コスト情報（debug=true パラメータ時のみ） */}
+        {debugMode && analysisCostInfo && (
           <div className="text-[11px] text-text-muted bg-surface-hover rounded px-3 py-2 font-mono">
             入力: {analysisCostInfo.inputTokens} | 出力: {analysisCostInfo.outputTokens} | キャッシュ読: {analysisCostInfo.cacheReadTokens} | キャッシュ作成: {analysisCostInfo.cacheCreationTokens} | 推定コスト: ¥{analysisCostInfo.estimatedCostJPY.toFixed(4)}
           </div>

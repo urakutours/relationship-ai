@@ -3,16 +3,23 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import type { CostInfo } from "@/lib/types";
+import { withHonorific } from "@/lib/honorific";
 
-// 天気の選択肢（雪・台風・猛暑・花粉を追加）
-const WEATHER_OPTIONS = [
+// メイン天気（排他選択）
+const MAIN_WEATHER = [
   { value: "晴れ", icon: "☀️" },
   { value: "曇り", icon: "☁️" },
   { value: "雨", icon: "🌧️" },
   { value: "雪", icon: "❄️" },
+] as const;
+
+// 追加コンディション（複数選択可）
+const EXTRA_CONDITIONS = [
   { value: "台風", icon: "🌀" },
   { value: "猛暑", icon: "🔥" },
+  { value: "極寒", icon: "🥶" },
   { value: "花粉", icon: "🤧" },
+  { value: "強風", icon: "💨" },
 ] as const;
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
@@ -51,10 +58,12 @@ interface InactivePerson {
 
 export default function HomePage() {
   const [weather, setWeather] = useState<string>("晴れ");
+  const [extraConditions, setExtraConditions] = useState<string[]>([]);
+  const [showExtra, setShowExtra] = useState(false);
   const [advice, setAdvice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [costInfo, setCostInfo] = useState<CostInfo | null>(null);
-  const [cachedWeather, setCachedWeather] = useState<string | null>(null);
+  const [cachedWeatherKey, setCachedWeatherKey] = useState<string | null>(null);
   const [profileExists, setProfileExists] = useState<boolean | null>(null);
   const [debugMode, setDebugMode] = useState(false);
 
@@ -89,28 +98,40 @@ export default function HomePage() {
       .finally(() => setDashboardLoading(false));
   }, []);
 
-  // 天気が変わったらキャッシュをクリア
+  // 天気・コンディションが変わったらキャッシュをクリア
+  const weatherKey = `${weather}|${extraConditions.sort().join(",")}`;
   useEffect(() => {
-    if (weather !== cachedWeather) {
+    if (weatherKey !== cachedWeatherKey) {
       setAdvice(null);
       setCostInfo(null);
     }
-  }, [weather, cachedWeather]);
+  }, [weatherKey, cachedWeatherKey]);
+
+  // 追加コンディションのトグル
+  const toggleCondition = (cond: string) => {
+    setExtraConditions((prev) =>
+      prev.includes(cond) ? prev.filter((c) => c !== cond) : [...prev, cond]
+    );
+  };
 
   const fetchAdvice = async () => {
-    if (advice && weather === cachedWeather) return;
+    if (advice && weatherKey === cachedWeatherKey) return;
     setLoading(true);
     try {
+      // 天気文字列を組み立て: "晴れ" or "晴れ（台風・花粉）"
+      const weatherStr = extraConditions.length > 0
+        ? `${weather}（${extraConditions.join("・")}）`
+        : weather;
       const res = await fetch("/api/biorhythm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ weather }),
+        body: JSON.stringify({ weather: weatherStr }),
       });
       const data = await res.json();
       if (res.ok) {
         setAdvice(data.advice);
         setCostInfo(data.costInfo ?? null);
-        setCachedWeather(weather);
+        setCachedWeatherKey(weatherKey);
       } else {
         setAdvice(data.error || "アドバイスを取得できませんでした");
       }
@@ -122,13 +143,8 @@ export default function HomePage() {
   };
 
   /** 敬称付き名前 */
-  const displayName = (nickname: string, honorific: string | null) => {
-    const suffix = honorific || "さん";
-    // 既に敬称で終わっている場合は付けない
-    const endings = ["さん", "ちゃん", "くん", "様", "先生", "殿", "氏"];
-    if (endings.some((e) => nickname.endsWith(e))) return nickname;
-    return `${nickname}${suffix}`;
-  };
+  const displayName = (nickname: string, honorific: string | null) =>
+    withHonorific(nickname, honorific);
 
   return (
     <div className="space-y-8">
@@ -168,29 +184,67 @@ export default function HomePage() {
           {weekdayMessage}
         </p>
 
-        <div className="flex items-center gap-4 mb-6 flex-wrap">
-          {/* 天気選択アイコン */}
-          <div className="flex gap-1.5 flex-wrap">
-            {WEATHER_OPTIONS.map((w) => (
-              <button
-                key={w.value}
-                onClick={() => setWeather(w.value)}
-                title={w.value}
-                className={`
-                  w-9 h-9 rounded-[4px] text-base flex items-center justify-center
-                  transition-all duration-200 border
-                  ${
-                    weather === w.value
-                      ? "border-gold bg-gold-subtle"
-                      : "border-border-subtle hover:border-gold-dim"
-                  }
-                `}
-              >
-                {w.icon}
-              </button>
-            ))}
+        <div className="space-y-3 mb-6">
+          {/* メイン天気（排他選択） */}
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex gap-1.5">
+              {MAIN_WEATHER.map((w) => (
+                <button
+                  key={w.value}
+                  onClick={() => setWeather(w.value)}
+                  title={w.value}
+                  className={`
+                    w-10 h-10 rounded-[4px] text-lg flex items-center justify-center
+                    transition-all duration-200 border
+                    ${
+                      weather === w.value
+                        ? "border-gold bg-gold-subtle"
+                        : "border-border-subtle hover:border-gold-dim"
+                    }
+                  `}
+                >
+                  {w.icon}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setShowExtra(!showExtra)}
+              className="text-[11px] text-text-muted hover:text-text-secondary transition-colors"
+            >
+              {showExtra ? "▾ コンディション" : "▸ コンディション"}
+              {extraConditions.length > 0 && (
+                <span className="ml-1 text-gold">({extraConditions.length})</span>
+              )}
+            </button>
           </div>
 
+          {/* 追加コンディション（複数選択、折りたたみ） */}
+          {showExtra && (
+            <div className="flex gap-1.5 flex-wrap pl-0.5">
+              {EXTRA_CONDITIONS.map((c) => (
+                <button
+                  key={c.value}
+                  onClick={() => toggleCondition(c.value)}
+                  title={c.value}
+                  className={`
+                    h-8 px-2.5 rounded-[4px] text-xs flex items-center gap-1
+                    transition-all duration-200 border
+                    ${
+                      extraConditions.includes(c.value)
+                        ? "border-gold bg-gold-subtle text-gold"
+                        : "border-border-subtle text-text-secondary hover:border-gold-dim"
+                    }
+                  `}
+                >
+                  <span className="text-sm">{c.icon}</span>
+                  {c.value}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* アドバイス取得ボタン */}
           <button
             onClick={fetchAdvice}
             disabled={loading}

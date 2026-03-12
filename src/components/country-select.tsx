@@ -1,23 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-
-// 主要国リスト（50カ国以上）
-const COUNTRIES = [
-  "日本", "アメリカ", "中国", "韓国", "台湾", "香港",
-  "イギリス", "フランス", "ドイツ", "イタリア", "スペイン", "ポルトガル",
-  "オランダ", "ベルギー", "スイス", "オーストリア", "スウェーデン", "ノルウェー",
-  "デンマーク", "フィンランド", "ポーランド", "チェコ", "ハンガリー", "ルーマニア",
-  "ギリシャ", "トルコ", "ロシア", "ウクライナ",
-  "オーストラリア", "ニュージーランド", "カナダ",
-  "ブラジル", "アルゼンチン", "メキシコ", "チリ", "コロンビア", "ペルー",
-  "インド", "パキスタン", "バングラデシュ", "スリランカ", "ネパール",
-  "タイ", "ベトナム", "フィリピン", "インドネシア", "マレーシア", "シンガポール",
-  "ミャンマー", "カンボジア", "ラオス",
-  "エジプト", "南アフリカ", "ナイジェリア", "ケニア", "モロッコ",
-  "サウジアラビア", "UAE", "イスラエル", "イラン", "イラク",
-  "モンゴル", "北朝鮮",
-];
+import { COUNTRIES, type CountryEntry } from "@/lib/countries";
 
 interface CountrySelectProps {
   value: string;
@@ -27,14 +11,19 @@ interface CountrySelectProps {
 
 export function CountrySelect({ value, onChange, className }: CountrySelectProps) {
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState(value);
-  const [isCustom, setIsCustom] = useState(false);
+  const [query, setQuery] = useState("");
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
-  // 外部から value が変わった場合に同期
+  // value から表示テキストを解決
   useEffect(() => {
-    setQuery(value);
+    if (!value) {
+      setQuery("");
+      return;
+    }
+    const entry = COUNTRIES.find(
+      (c) => c.ja === value || c.iso === value.toUpperCase() || c.en.toLowerCase() === value.toLowerCase()
+    );
+    setQuery(entry ? entry.ja : value);
   }, [value]);
 
   // 外部クリックで閉じる
@@ -48,22 +37,26 @@ export function CountrySelect({ value, onChange, className }: CountrySelectProps
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const filtered = COUNTRIES.filter((c) =>
-    c.toLowerCase().includes(query.toLowerCase())
-  );
+  // フィルタリング: 日本語・英語・ISOで検索
+  const filtered = COUNTRIES.filter((c) => {
+    const q = query.toLowerCase();
+    return (
+      c.ja.toLowerCase().includes(q) ||
+      c.en.toLowerCase().includes(q) ||
+      c.iso.toLowerCase().includes(q)
+    );
+  });
 
-  const handleSelect = (country: string) => {
-    setQuery(country);
-    onChange(country);
+  const handleSelect = (entry: CountryEntry) => {
+    setQuery(entry.ja);
+    onChange(entry.ja);
     setOpen(false);
-    setIsCustom(false);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value;
     setQuery(v);
     setOpen(true);
-    setIsCustom(true);
     onChange(v);
   };
 
@@ -74,12 +67,11 @@ export function CountrySelect({ value, onChange, className }: CountrySelectProps
   return (
     <div ref={wrapperRef} className={`relative ${className || ""}`}>
       <input
-        ref={inputRef}
         type="text"
         value={query}
         onChange={handleInputChange}
         onFocus={handleFocus}
-        placeholder="国名を入力..."
+        placeholder="国名を入力（日本語・英語どちらでも）"
         className="input-underline"
         autoComplete="off"
       />
@@ -88,25 +80,26 @@ export function CountrySelect({ value, onChange, className }: CountrySelectProps
           {filtered.length > 0 ? (
             filtered.map((c) => (
               <button
-                key={c}
+                key={c.iso}
                 type="button"
                 onClick={() => handleSelect(c)}
                 className={`w-full text-left px-3 py-2 text-sm transition-colors hover:bg-gold/10 hover:text-gold ${
-                  c === value ? "text-gold bg-gold/5" : "text-text-secondary"
+                  c.ja === value || c.iso === value?.toUpperCase() ? "text-gold bg-gold/5" : "text-text-secondary"
                 }`}
               >
-                {c}
+                <span>{c.ja}</span>
+                <span className="text-text-muted ml-2 text-xs">({c.en})</span>
               </button>
             ))
           ) : (
             <div className="px-3 py-2 text-sm text-text-muted">
-              {isCustom && query ? `「${query}」をそのまま使用` : "候補がありません"}
+              {query ? `「${query}」をそのまま使用` : "候補がありません"}
             </div>
           )}
-          {query && !COUNTRIES.includes(query) && filtered.length > 0 && (
+          {query && !COUNTRIES.some((c) => c.ja === query || c.en.toLowerCase() === query.toLowerCase()) && filtered.length > 0 && (
             <button
               type="button"
-              onClick={() => handleSelect(query)}
+              onClick={() => { onChange(query); setOpen(false); }}
               className="w-full text-left px-3 py-2 text-sm text-jade hover:bg-jade/10 border-t border-border-subtle"
             >
               その他: 「{query}」を使用

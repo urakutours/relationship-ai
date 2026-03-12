@@ -51,13 +51,33 @@ export const CONTACT_FREQUENCY_OPTIONS = [
 ] as const;
 export type ContactFrequency = (typeof CONTACT_FREQUENCY_OPTIONS)[number]["value"];
 
-// MBTI 16タイプ
-export const MBTI_TYPES = [
+// MBTI 16タイプ（英語名 + 日本語説明）
+export const MBTI_TYPES_DATA = [
+  { code: "INTJ", name: "Architect", desc: "戦略的な思考家" },
+  { code: "INTP", name: "Logician", desc: "論理的な発明家" },
+  { code: "ENTJ", name: "Commander", desc: "大胆な指導者" },
+  { code: "ENTP", name: "Debater", desc: "知的な挑戦者" },
+  { code: "INFJ", name: "Advocate", desc: "静かな理想主義者" },
+  { code: "INFP", name: "Mediator", desc: "共感的な仲介者" },
+  { code: "ENFJ", name: "Protagonist", desc: "カリスマ的な指導者" },
+  { code: "ENFP", name: "Campaigner", desc: "情熱的な自由人" },
+  { code: "ISTJ", name: "Logistician", desc: "誠実な管理者" },
+  { code: "ISFJ", name: "Defender", desc: "献身的な守護者" },
+  { code: "ESTJ", name: "Executive", desc: "秩序ある管理者" },
+  { code: "ESFJ", name: "Consul", desc: "社交的な世話役" },
+  { code: "ISTP", name: "Virtuoso", desc: "大胆な職人" },
+  { code: "ISFP", name: "Adventurer", desc: "柔軟な芸術家" },
+  { code: "ESTP", name: "Entrepreneur", desc: "エネルギッシュな起業家" },
+  { code: "ESFP", name: "Entertainer", desc: "陽気なエンターテイナー" },
+] as const;
+
+// 後方互換: コード配列
+export const MBTI_TYPES = MBTI_TYPES_DATA.map((m) => m.code) as unknown as readonly [
   "INTJ", "INTP", "ENTJ", "ENTP",
   "INFJ", "INFP", "ENFJ", "ENFP",
   "ISTJ", "ISFJ", "ESTJ", "ESFJ",
   "ISTP", "ISFP", "ESTP", "ESFP",
-] as const;
+];
 export type MbtiType = (typeof MBTI_TYPES)[number];
 
 // 婚姻状況の選択肢
