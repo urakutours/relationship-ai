@@ -95,6 +95,8 @@ export async function POST(request: NextRequest) {
         relationship: person.relationship,
         divination,
       },
+      isTruncated: result.isTruncated,
+      truncatedContext: result.truncatedContext,
       ...(process.env.NODE_ENV === "development" && result.costInfo
         ? { costInfo: result.costInfo }
         : {}),

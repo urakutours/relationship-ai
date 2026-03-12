@@ -11,15 +11,8 @@ const WEATHER_OPTIONS = [
   { value: "雨", icon: "\uD83C\uDF27\uFE0F" },
 ] as const;
 
-// 和暦変換
-function toWareki(date: Date): string {
-  const y = date.getFullYear();
-  const m = date.getMonth() + 1;
-  const d = date.getDate();
-  if (y >= 2019) return `令和${y - 2018}年${m}月${d}日`;
-  if (y >= 1989) return `平成${y - 1988}年${m}月${d}日`;
-  return `${y}年${m}月${d}日`;
-}
+// 多言語化を考慮した構造
+const LOCALE = "ja-JP";
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
@@ -87,7 +80,7 @@ export default function HomePage() {
           {today.getFullYear()} — {WEEKDAYS[today.getDay()]}曜日
         </p>
         <p className="text-xs text-text-muted mt-1">
-          {toWareki(today)}
+          {today.toLocaleDateString(LOCALE, { year: "numeric", month: "long", day: "numeric" })}
         </p>
       </div>
 
@@ -139,7 +132,7 @@ export default function HomePage() {
             disabled={loading}
             className="btn-ghost"
           >
-            {loading ? "生成中..." : "アドバイスを取得"}
+            {loading ? "まとめています..." : "アドバイスを取得"}
           </button>
         </div>
 

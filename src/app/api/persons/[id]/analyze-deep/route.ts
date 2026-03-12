@@ -115,6 +115,7 @@ ${quickNoteRef}`;
 
     const text =
       response.content[0].type === "text" ? response.content[0].text : "";
+    const isTruncated = response.stop_reason === "max_tokens";
 
     // DB保存
     const now = new Date();
@@ -144,6 +145,8 @@ ${quickNoteRef}`;
       deepNote: text.trim(),
       deepNoteUpdatedAt: now.toISOString(),
       costInfo,
+      isTruncated,
+      truncatedContext: isTruncated ? text.trim() : undefined,
     });
   } catch (error) {
     console.error("深掘り分析エラー:", error);

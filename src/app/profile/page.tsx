@@ -56,6 +56,9 @@ export default function ProfilePage() {
   const [quickAnalyzing, setQuickAnalyzing] = useState(false);
   const [deepAnalyzing, setDeepAnalyzing] = useState(false);
   const [analysisCostInfo, setAnalysisCostInfo] = useState<CostInfo | null>(null);
+  const [deepTruncated, setDeepTruncated] = useState(false);
+  const [deepTruncatedContext, setDeepTruncatedContext] = useState<string | null>(null);
+  const [continuingDeep, setContinuingDeep] = useState(false);
 
   // ポーリング用
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -190,6 +193,8 @@ export default function ProfilePage() {
   const runDeepAnalysis = async () => {
     setDeepAnalyzing(true);
     setAnalysisCostInfo(null);
+    setDeepTruncated(false);
+    setDeepTruncatedContext(null);
     try {
       const res = await fetch("/api/profile/analyze-deep", { method: "POST" });
       const data = await res.json();
@@ -197,9 +202,39 @@ export default function ProfilePage() {
         setDeepNote(data.deepNote);
         setDeepNoteUpdatedAt(data.deepNoteUpdatedAt);
         if (data.costInfo) setAnalysisCostInfo(data.costInfo);
+        if (data.isTruncated) {
+          setDeepTruncated(true);
+          setDeepTruncatedContext(data.truncatedContext);
+        }
       }
     } catch (err) { console.error("プロフィール深掘り分析エラー:", err); }
     finally { setDeepAnalyzing(false); }
+  };
+
+  // 続きを読む（プロフィール版）
+  const continueDeepAnalysis = async () => {
+    if (!deepTruncatedContext) return;
+    setContinuingDeep(true);
+    try {
+      const res = await fetch("/api/profile/analyze-continue", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ truncatedContent: deepTruncatedContext }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const newNote = `${deepNote || ""}\n\n${data.continuation}`;
+        setDeepNote(newNote.trim());
+        if (data.isTruncated) {
+          setDeepTruncatedContext(data.truncatedContext);
+        } else {
+          setDeepTruncated(false);
+          setDeepTruncatedContext(null);
+        }
+        if (data.costInfo) setAnalysisCostInfo(data.costInfo);
+      }
+    } catch (err) { console.error("続き生成エラー:", err); }
+    finally { setContinuingDeep(false); }
   };
 
   const formatDate = (dateStr: string | null) => {
@@ -343,7 +378,7 @@ export default function ProfilePage() {
             <div className="flex items-center gap-3">
               {quickNoteUpdatedAt && <span className="text-[11px] text-text-muted">{formatDate(quickNoteUpdatedAt)}</span>}
               <button onClick={runQuickAnalysis} disabled={quickAnalyzing} className="text-[12px] text-text-secondary hover:text-gold transition-colors disabled:opacity-40">
-                {quickAnalyzing ? "分析中..." : "再生成"}
+                {quickAnalyzing ? "まとめています..." : "更新する"}
               </button>
             </div>
           </div>
@@ -351,14 +386,14 @@ export default function ProfilePage() {
           {quickAnalyzing ? (
             <div className="flex items-center justify-center py-8 gap-3">
               <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-              <span className="text-text-muted text-sm">分析中...</span>
+              <span className="text-text-muted text-sm">まとめています...</span>
             </div>
           ) : quickNote ? (
             <div className="markdown-body text-sm"><ReactMarkdown>{quickNote}</ReactMarkdown></div>
           ) : (
             <div className="text-center py-6">
               <p className="text-text-muted text-sm mb-3">まだ分析が実行されていません</p>
-              <button onClick={runQuickAnalysis} className="btn-ghost text-sm">クイック分析を実行</button>
+              <button onClick={runQuickAnalysis} className="btn-ghost text-sm">概要をまとめる</button>
             </div>
           )}
         </div>
@@ -373,23 +408,41 @@ export default function ProfilePage() {
           {deepAnalyzing ? (
             <div className="flex items-center justify-center py-10 gap-3">
               <div className="w-5 h-5 border-2 border-jade border-t-transparent rounded-full animate-spin" />
-              <span className="text-text-muted text-sm">深掘り分析中... 少々お待ちください</span>
+              <span className="text-text-muted text-sm">詳しく分析しています... 少々お待ちください</span>
             </div>
           ) : deepNote ? (
             <>
               <div className="markdown-body text-sm"><ReactMarkdown>{deepNote}</ReactMarkdown></div>
+              {deepTruncated && (
+                <div className="mt-3">
+                  <button
+                    onClick={continueDeepAnalysis}
+                    disabled={continuingDeep}
+                    className="text-[12px] text-jade hover:text-gold transition-colors disabled:opacity-40 flex items-center gap-1.5"
+                  >
+                    {continuingDeep ? (
+                      <>
+                        <span className="w-3 h-3 border border-jade border-t-transparent rounded-full animate-spin" />
+                        続きを生成中...
+                      </>
+                    ) : (
+                      "続きを読む →"
+                    )}
+                  </button>
+                </div>
+              )}
               <div className="mt-4 pt-4 border-t border-border-subtle">
-                <button onClick={runDeepAnalysis} className="text-[12px] text-text-secondary hover:text-jade transition-colors">再生成する</button>
+                <button onClick={runDeepAnalysis} className="text-[12px] text-text-secondary hover:text-jade transition-colors">更新する</button>
               </div>
             </>
           ) : (
             <div className="text-center py-6">
               <p className="text-text-muted text-sm mb-1">より詳しい自己分析を実行できます</p>
-              <p className="text-text-muted text-[11px] mb-4">生成には少し時間がかかります</p>
+              <p className="text-text-muted text-[11px] mb-4">少し時間がかかります</p>
               <button onClick={runDeepAnalysis} disabled={deepAnalyzing}
                 className="inline-flex items-center gap-2 px-6 py-2.5 border border-jade-dim text-jade bg-transparent rounded-[4px] text-sm hover:bg-jade hover:text-base transition-all duration-300 disabled:opacity-40">
                 <span className="text-lg leading-none">🔍</span>
-                詳細分析を実行する
+                詳しく分析する
               </button>
             </div>
           )}

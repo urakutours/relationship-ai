@@ -75,6 +75,7 @@ ${quickNoteRef}`;
 
     const text =
       response.content[0].type === "text" ? response.content[0].text : "";
+    const isTruncated = response.stop_reason === "max_tokens";
 
     const now = new Date();
     await prisma.userProfile.update({
@@ -102,6 +103,8 @@ ${quickNoteRef}`;
       deepNote: text.trim(),
       deepNoteUpdatedAt: now.toISOString(),
       costInfo,
+      isTruncated,
+      truncatedContext: isTruncated ? text.trim() : undefined,
     });
   } catch (error) {
     console.error("プロフィール深掘り分析エラー:", error);

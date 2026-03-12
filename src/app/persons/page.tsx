@@ -24,6 +24,11 @@ import { CSS } from "@dnd-kit/utilities";
 import type { PersonData, CostInfo, LabelData } from "@/lib/types";
 import { RELATIONSHIP_TYPES } from "@/lib/types";
 
+const LABEL_PRESET_COLORS = [
+  '#db914f', '#e8c547', '#a3d977', '#4ecf82', '#7ec8c0', '#4ab3e8',
+  '#5b8dee', '#7c6df0', '#b06def', '#e86baa', '#f06b6b', '#94a3b8',
+];
+
 /** 相性スコア→星表示 */
 function scoreToStars(score: number | null): string {
   if (score === null) return "--";
@@ -46,13 +51,23 @@ const DEFAULT_PLACEHOLDER =
 function SortablePersonCard({
   person,
   onConsult,
-  onDelete,
+  onMenuOpen,
   onClick,
+  isRenaming,
+  renameValue,
+  onRenameChange,
+  onRenameSubmit,
+  onRenameCancel,
 }: {
   person: PersonData;
   onConsult: (e: React.MouseEvent, person: PersonData) => void;
-  onDelete: (e: React.MouseEvent, id: string, nickname: string) => void;
+  onMenuOpen: (e: React.MouseEvent, person: PersonData) => void;
   onClick: () => void;
+  isRenaming: boolean;
+  renameValue: string;
+  onRenameChange: (v: string) => void;
+  onRenameSubmit: () => void;
+  onRenameCancel: () => void;
 }) {
   const {
     attributes,
@@ -89,9 +104,22 @@ function SortablePersonCard({
             ⠿
           </span>
 
-          <span className="text-text-primary text-[15px]">
-            {person.nickname}
-          </span>
+          {isRenaming ? (
+            <input
+              type="text"
+              value={renameValue}
+              onChange={(e) => onRenameChange(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") onRenameSubmit(); if (e.key === "Escape") onRenameCancel(); }}
+              onBlur={onRenameSubmit}
+              autoFocus
+              onClick={(e) => e.stopPropagation()}
+              className="text-text-primary text-[15px] bg-transparent border-b border-gold outline-none w-24"
+            />
+          ) : (
+            <span className="text-text-primary text-[15px]">
+              {person.nickname}
+            </span>
+          )}
 
           {!hasNote && (
             <span className="inline-block px-1.5 py-0.5 rounded text-[10px] bg-amber-900/30 text-amber-400 border border-amber-700/30">
@@ -117,20 +145,22 @@ function SortablePersonCard({
           <span className="ml-auto text-xs text-gold tracking-wider">
             {scoreToStars(person.compatibilityScore)}
           </span>
+
+          {/* ︙ メニューボタン */}
+          <button
+            onClick={(e) => onMenuOpen(e, person)}
+            className="text-text-muted hover:text-text-secondary transition-colors text-sm px-1 opacity-0 group-hover:opacity-100"
+          >
+            ︙
+          </button>
         </div>
 
-        <div className="flex items-center justify-between mt-2 pl-7">
+        <div className="flex items-center mt-2 pl-7">
           <button
             onClick={(e) => onConsult(e, person)}
             className="text-jade text-xs hover:text-gold transition-colors"
           >
             この人物について相談する ›
-          </button>
-          <button
-            onClick={(e) => onDelete(e, person.id, person.nickname)}
-            className="text-text-muted hover:text-danger transition-colors text-xs opacity-0 group-hover:opacity-100"
-          >
-            削除
           </button>
         </div>
       </div>
@@ -153,9 +183,22 @@ function SortablePersonCard({
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="text-text-primary text-[15px] font-medium">
-                {person.nickname}
-              </span>
+              {isRenaming ? (
+                <input
+                  type="text"
+                  value={renameValue}
+                  onChange={(e) => onRenameChange(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") onRenameSubmit(); if (e.key === "Escape") onRenameCancel(); }}
+                  onBlur={onRenameSubmit}
+                  autoFocus
+                  onClick={(e) => e.stopPropagation()}
+                  className="text-text-primary text-[15px] font-medium bg-transparent border-b border-gold outline-none w-24"
+                />
+              ) : (
+                <span className="text-text-primary text-[15px] font-medium">
+                  {person.nickname}
+                </span>
+              )}
               <span className="inline-block px-1.5 py-0.5 border border-border-subtle rounded-[3px] text-[10px] text-text-secondary shrink-0">
                 {person.relationship}
               </span>
@@ -188,10 +231,10 @@ function SortablePersonCard({
           </div>
 
           <button
-            onClick={(e) => onDelete(e, person.id, person.nickname)}
-            className="text-text-muted hover:text-danger transition-colors text-xs shrink-0"
+            onClick={(e) => onMenuOpen(e, person)}
+            className="text-text-muted hover:text-text-secondary transition-colors text-sm shrink-0"
           >
-            ✕
+            ︙
           </button>
         </div>
       </div>
@@ -209,7 +252,7 @@ export default function PersonsListPage() {
   const [allLabels, setAllLabels] = useState<LabelData[]>([]);
   const [showLabelManager, setShowLabelManager] = useState(false);
   const [newLabelName, setNewLabelName] = useState("");
-  const [newLabelColor, setNewLabelColor] = useState("#7ec8c0");
+  const [newLabelColor, setNewLabelColor] = useState(LABEL_PRESET_COLORS[0]);
 
   // フィルター・ソート
   const [filterRelationship, setFilterRelationship] = useState("");
@@ -233,11 +276,16 @@ export default function PersonsListPage() {
   const [countdown, setCountdown] = useState(3);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // ラベル割り当てモーダル
-  const [showLabelAssign, setShowLabelAssign] = useState(false);
-  const [labelAssignPersonId, setLabelAssignPersonId] = useState<string | null>(null);
-  const [labelAssignPersonName, setLabelAssignPersonName] = useState("");
+  // ︙ メニュー
+  const [menuPerson, setMenuPerson] = useState<PersonData | null>(null);
+  const [menuPos, setMenuPos] = useState<{ x: number; y: number } | null>(null);
+  const [menuView, setMenuView] = useState<"main" | "labels">("main");
   const [selectedLabelIds, setSelectedLabelIds] = useState<number[]>([]);
+  const [renamingPersonId, setRenamingPersonId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [deleteConfirmPerson, setDeleteConfirmPerson] = useState<PersonData | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -298,21 +346,6 @@ export default function PersonsListPage() {
     }
   };
 
-  const handleDelete = async (
-    e: React.MouseEvent,
-    id: string,
-    nickname: string
-  ) => {
-    e.stopPropagation();
-    if (!confirm(`「${nickname}」を削除しますか？`)) return;
-    try {
-      await fetch(`/api/persons?id=${id}`, { method: "DELETE" });
-      setPersons((prev) => prev.filter((p) => p.id !== id));
-    } catch (error) {
-      console.error("削除エラー:", error);
-    }
-  };
-
   // ===== ラベル管理 =====
   const createLabel = async () => {
     if (!newLabelName.trim()) return;
@@ -349,39 +382,104 @@ export default function PersonsListPage() {
     }
   };
 
-  // ===== ラベル割り当て =====
-  const openLabelAssign = (e: React.MouseEvent, person: PersonData) => {
+  // ===== ︙ メニュー =====
+  const openMenu = (e: React.MouseEvent, person: PersonData) => {
     e.stopPropagation();
-    setLabelAssignPersonId(person.id);
-    setLabelAssignPersonName(person.nickname);
+    e.preventDefault();
+    const isMobile = window.innerWidth < 768;
+    setMenuPerson(person);
+    setMenuView("main");
     setSelectedLabelIds(person.labels.map((pl) => pl.labelId));
-    setShowLabelAssign(true);
+    if (isMobile) {
+      setShowMobileMenu(true);
+      setMenuPos(null);
+    } else {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      setMenuPos({ x: rect.right, y: rect.bottom + 4 });
+      setShowMobileMenu(false);
+    }
   };
 
-  const saveLabelAssign = async () => {
-    if (!labelAssignPersonId) return;
+  const closeMenu = () => {
+    setMenuPerson(null);
+    setMenuPos(null);
+    setShowMobileMenu(false);
+    setMenuView("main");
+  };
+
+  // メニュー外クリックで閉じる
+  useEffect(() => {
+    if (!menuPerson) return;
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        closeMenu();
+      }
+    };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [menuPerson]);
+
+  // ラベル即時切り替え
+  const toggleLabel = async (labelId: number) => {
+    if (!menuPerson) return;
+    const newIds = selectedLabelIds.includes(labelId)
+      ? selectedLabelIds.filter((id) => id !== labelId)
+      : [...selectedLabelIds, labelId];
+    setSelectedLabelIds(newIds);
     try {
-      const res = await fetch(`/api/persons/${labelAssignPersonId}/labels`, {
+      const res = await fetch(`/api/persons/${menuPerson.id}/labels`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ labelIds: selectedLabelIds }),
+        body: JSON.stringify({ labelIds: newIds }),
       });
       if (res.ok) {
         const updatedPerson = await res.json();
         setPersons((prev) =>
           prev.map((p) => (p.id === updatedPerson.id ? { ...p, labels: updatedPerson.labels } : p))
         );
-        setShowLabelAssign(false);
       }
     } catch (error) {
       console.error("ラベル割り当てエラー:", error);
     }
   };
 
-  const toggleLabelSelection = (labelId: number) => {
-    setSelectedLabelIds((prev) =>
-      prev.includes(labelId) ? prev.filter((id) => id !== labelId) : [...prev, labelId]
-    );
+  // 名前変更
+  const startRename = () => {
+    if (!menuPerson) return;
+    setRenamingPersonId(menuPerson.id);
+    setRenameValue(menuPerson.nickname);
+    closeMenu();
+  };
+
+  const submitRename = async () => {
+    if (!renamingPersonId || !renameValue.trim()) return;
+    try {
+      const res = await fetch(`/api/persons/${renamingPersonId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nickname: renameValue.trim() }),
+      });
+      if (res.ok) {
+        setPersons((prev) =>
+          prev.map((p) => (p.id === renamingPersonId ? { ...p, nickname: renameValue.trim() } : p))
+        );
+      }
+    } catch (error) {
+      console.error("名前変更エラー:", error);
+    }
+    setRenamingPersonId(null);
+  };
+
+  // 削除確認モーダル
+  const confirmDelete = async () => {
+    if (!deleteConfirmPerson) return;
+    try {
+      await fetch(`/api/persons?id=${deleteConfirmPerson.id}`, { method: "DELETE" });
+      setPersons((prev) => prev.filter((p) => p.id !== deleteConfirmPerson.id));
+    } catch (error) {
+      console.error("削除エラー:", error);
+    }
+    setDeleteConfirmPerson(null);
   };
 
   // ===== 相談モーダル =====
@@ -458,7 +556,7 @@ export default function PersonsListPage() {
         setConsultSaved(true);
         if (data.costInfo) setConsultCostInfo(data.costInfo);
       } else {
-        setConsultResult(data.error || "深掘り相談処理に失敗しました");
+        setConsultResult(data.error || "詳細相談処理に失敗しました");
       }
     } catch {
       setConsultResult("ネットワークエラーが発生しました");
@@ -573,28 +671,38 @@ export default function PersonsListPage() {
           </div>
 
           {/* 新規ラベル作成 */}
-          <div className="flex items-center gap-2">
-            <input
-              type="color"
-              value={newLabelColor}
-              onChange={(e) => setNewLabelColor(e.target.value)}
-              className="w-8 h-8 rounded cursor-pointer border-0 bg-transparent"
-            />
-            <input
-              type="text"
-              value={newLabelName}
-              onChange={(e) => setNewLabelName(e.target.value)}
-              placeholder="ラベル名"
-              className="input-underline flex-1"
-              onKeyDown={(e) => e.key === "Enter" && createLabel()}
-            />
-            <button
-              onClick={createLabel}
-              disabled={!newLabelName.trim()}
-              className="text-xs text-jade hover:text-gold transition-colors disabled:opacity-40"
-            >
-              追加
-            </button>
+          <div className="space-y-2">
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {LABEL_PRESET_COLORS.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => setNewLabelColor(color)}
+                  className="w-6 h-6 rounded-full shrink-0 transition-transform duration-150 hover:scale-[1.2]"
+                  style={{
+                    backgroundColor: color,
+                    boxShadow: newLabelColor === color ? '0 0 0 2px #fff' : 'none',
+                  }}
+                />
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={newLabelName}
+                onChange={(e) => setNewLabelName(e.target.value)}
+                placeholder="ラベル名"
+                className="input-underline flex-1"
+                onKeyDown={(e) => e.key === "Enter" && createLabel()}
+              />
+              <button
+                onClick={createLabel}
+                disabled={!newLabelName.trim()}
+                className="text-xs text-jade hover:text-gold transition-colors disabled:opacity-40"
+              >
+                追加
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -677,8 +785,13 @@ export default function PersonsListPage() {
                   key={person.id}
                   person={person}
                   onConsult={openConsultModal}
-                  onDelete={handleDelete}
+                  onMenuOpen={openMenu}
                   onClick={() => router.push(`/persons/${person.id}`)}
+                  isRenaming={renamingPersonId === person.id}
+                  renameValue={renameValue}
+                  onRenameChange={setRenameValue}
+                  onRenameSubmit={submitRename}
+                  onRenameCancel={() => setRenamingPersonId(null)}
                 />
               ))}
             </div>
@@ -695,9 +808,22 @@ export default function PersonsListPage() {
                 className="card !py-3 cursor-pointer hover:border-gold-dim transition-colors duration-200 group"
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-text-primary text-[15px]">
-                    {person.nickname}
-                  </span>
+                  {renamingPersonId === person.id ? (
+                    <input
+                      type="text"
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") submitRename(); if (e.key === "Escape") setRenamingPersonId(null); }}
+                      onBlur={submitRename}
+                      autoFocus
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-text-primary text-[15px] bg-transparent border-b border-gold outline-none w-24"
+                    />
+                  ) : (
+                    <span className="text-text-primary text-[15px]">
+                      {person.nickname}
+                    </span>
+                  )}
                   {!hasNote && (
                     <span className="inline-block px-1.5 py-0.5 rounded text-[10px] bg-amber-900/30 text-amber-400 border border-amber-700/30">
                       未分析
@@ -718,29 +844,19 @@ export default function PersonsListPage() {
                   <span className="ml-auto text-xs text-gold tracking-wider">
                     {scoreToStars(person.compatibilityScore)}
                   </span>
-                </div>
-                <div className="flex items-center justify-between mt-2">
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={(e) => openConsultModal(e, person)}
-                      className="text-jade text-xs hover:text-gold transition-colors"
-                    >
-                      この人物について相談する ›
-                    </button>
-                    {allLabels.length > 0 && (
-                      <button
-                        onClick={(e) => openLabelAssign(e, person)}
-                        className="text-text-muted text-[11px] hover:text-text-secondary transition-colors opacity-0 group-hover:opacity-100"
-                      >
-                        ラベル
-                      </button>
-                    )}
-                  </div>
                   <button
-                    onClick={(e) => handleDelete(e, person.id, person.nickname)}
-                    className="text-text-muted hover:text-danger transition-colors text-xs opacity-0 group-hover:opacity-100"
+                    onClick={(e) => openMenu(e, person)}
+                    className="text-text-muted hover:text-text-secondary transition-colors text-sm px-1 opacity-0 group-hover:opacity-100"
                   >
-                    削除
+                    ︙
+                  </button>
+                </div>
+                <div className="flex items-center mt-2">
+                  <button
+                    onClick={(e) => openConsultModal(e, person)}
+                    className="text-jade text-xs hover:text-gold transition-colors"
+                  >
+                    この人物について相談する ›
                   </button>
                 </div>
               </div>
@@ -749,55 +865,158 @@ export default function PersonsListPage() {
         </div>
       )}
 
-      {/* ===== ラベル割り当てモーダル ===== */}
-      {showLabelAssign && (
+      {/* ===== ︙ ポップオーバーメニュー（デスクトップ） ===== */}
+      {menuPerson && menuPos && !showMobileMenu && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowLabelAssign(false);
-          }}
+          ref={menuRef}
+          className="fixed z-[110] bg-surface border border-border rounded-lg shadow-lg py-1 min-w-[180px]"
+          style={{ top: menuPos.y, left: menuPos.x, transform: 'translateX(-100%)' }}
         >
-          <div className="bg-surface border border-border rounded-lg w-full max-w-sm mx-4 p-6 space-y-4">
-            <h3 className="font-display text-lg text-gold tracking-wide">
-              {labelAssignPersonName}のラベル
-            </h3>
-
-            {allLabels.length === 0 ? (
-              <p className="text-text-muted text-sm">
-                ラベルがありません。まずラベルを作成してください。
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {allLabels.map((label) => (
-                  <label
-                    key={label.id}
-                    className="flex items-center gap-3 py-1.5 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedLabelIds.includes(label.id)}
-                      onChange={() => toggleLabelSelection(label.id)}
-                      className="accent-jade"
-                    />
-                    <span
-                      className="w-3 h-3 rounded-full shrink-0"
-                      style={{ backgroundColor: label.color }}
-                    />
-                    <span className="text-sm text-text-primary">
-                      {label.name}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            )}
-
-            <div className="flex gap-3 pt-2">
-              <button onClick={saveLabelAssign} className="btn-ghost flex-1 text-sm">
-                保存
+          {menuView === "main" ? (
+            <>
+              <button
+                onClick={() => setMenuView("labels")}
+                className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-surface-hover transition-colors"
+              >
+                ラベルを管理
               </button>
               <button
-                onClick={() => setShowLabelAssign(false)}
-                className="flex-1 py-2 text-sm text-text-muted hover:text-text-secondary transition-colors"
+                onClick={startRename}
+                className="w-full text-left px-4 py-2 text-sm text-text-primary hover:bg-surface-hover transition-colors"
+              >
+                名前を変更
+              </button>
+              <hr className="border-border-subtle my-1" />
+              <button
+                onClick={() => { setDeleteConfirmPerson(menuPerson); closeMenu(); }}
+                className="w-full text-left px-4 py-2 text-sm text-danger hover:bg-surface-hover transition-colors"
+              >
+                削除
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => setMenuView("main")}
+                className="w-full text-left px-4 py-2 text-xs text-text-muted hover:bg-surface-hover transition-colors"
+              >
+                ← 戻る
+              </button>
+              <hr className="border-border-subtle my-1" />
+              {allLabels.length === 0 ? (
+                <p className="px-4 py-2 text-xs text-text-muted">ラベルがありません</p>
+              ) : (
+                allLabels.map((label) => (
+                  <button
+                    key={label.id}
+                    onClick={() => toggleLabel(label.id)}
+                    className="w-full flex items-center gap-2.5 px-4 py-1.5 text-sm hover:bg-surface-hover transition-colors"
+                  >
+                    <span className={`w-4 h-4 rounded border flex items-center justify-center text-[10px] ${
+                      selectedLabelIds.includes(label.id) ? 'border-jade bg-jade/20 text-jade' : 'border-border-subtle text-transparent'
+                    }`}>✓</span>
+                    <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+                    <span className="text-text-primary">{label.name}</span>
+                  </button>
+                ))
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* ===== ︙ ボトムシート（モバイル） ===== */}
+      {menuPerson && showMobileMenu && (
+        <div
+          className="fixed inset-0 z-[110] flex items-end justify-center bg-black/60"
+          onClick={(e) => { if (e.target === e.currentTarget) closeMenu(); }}
+        >
+          <div className="bg-surface border-t border-border rounded-t-2xl w-full max-w-lg px-4 pb-6 pt-3 space-y-1 animate-slide-up">
+            <div className="w-10 h-1 bg-border-subtle rounded-full mx-auto mb-3" />
+            <p className="text-xs text-text-muted px-2 mb-2">{menuPerson.nickname}</p>
+
+            {menuView === "main" ? (
+              <>
+                <button
+                  onClick={() => setMenuView("labels")}
+                  className="w-full text-left px-4 py-3 text-sm text-text-primary hover:bg-surface-hover rounded-lg transition-colors"
+                >
+                  ラベルを管理
+                </button>
+                <button
+                  onClick={startRename}
+                  className="w-full text-left px-4 py-3 text-sm text-text-primary hover:bg-surface-hover rounded-lg transition-colors"
+                >
+                  名前を変更
+                </button>
+                <hr className="border-border-subtle my-1" />
+                <button
+                  onClick={() => { setDeleteConfirmPerson(menuPerson); closeMenu(); }}
+                  className="w-full text-left px-4 py-3 text-sm text-danger hover:bg-surface-hover rounded-lg transition-colors"
+                >
+                  削除
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => setMenuView("main")}
+                  className="w-full text-left px-4 py-2 text-xs text-text-muted hover:bg-surface-hover rounded-lg transition-colors"
+                >
+                  ← 戻る
+                </button>
+                {allLabels.length === 0 ? (
+                  <p className="px-4 py-3 text-xs text-text-muted">ラベルがありません</p>
+                ) : (
+                  allLabels.map((label) => (
+                    <button
+                      key={label.id}
+                      onClick={() => toggleLabel(label.id)}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-surface-hover rounded-lg transition-colors"
+                    >
+                      <span className={`w-5 h-5 rounded border flex items-center justify-center text-xs ${
+                        selectedLabelIds.includes(label.id) ? 'border-jade bg-jade/20 text-jade' : 'border-border-subtle text-transparent'
+                      }`}>✓</span>
+                      <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ backgroundColor: label.color }} />
+                      <span className="text-text-primary">{label.name}</span>
+                    </button>
+                  ))
+                )}
+              </>
+            )}
+
+            <button
+              onClick={closeMenu}
+              className="w-full text-center py-3 text-sm text-text-muted hover:text-text-secondary mt-2"
+            >
+              閉じる
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== 削除確認モーダル ===== */}
+      {deleteConfirmPerson && (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget) setDeleteConfirmPerson(null); }}
+        >
+          <div className="bg-surface border border-border rounded-lg w-full max-w-sm mx-4 p-6 space-y-4">
+            <h3 className="font-display text-lg text-gold tracking-wide">削除の確認</h3>
+            <p className="text-sm text-text-secondary">
+              「{deleteConfirmPerson.nickname}」を削除しますか？<br />
+              <span className="text-text-muted text-xs">この操作は取り消せません。関連する相談履歴も削除されます。</span>
+            </p>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={confirmDelete}
+                className="flex-1 py-2.5 text-sm text-white bg-danger/80 hover:bg-danger rounded-[4px] transition-colors"
+              >
+                削除する
+              </button>
+              <button
+                onClick={() => setDeleteConfirmPerson(null)}
+                className="flex-1 py-2.5 text-sm text-text-muted hover:text-text-secondary transition-colors"
               >
                 キャンセル
               </button>
@@ -856,7 +1075,7 @@ export default function PersonsListPage() {
                             cx="32"
                             cy="32"
                             r="28"
-                            stroke="rgba(201,168,76,0.15)"
+                            stroke="rgba(219,145,79,0.15)"
                             strokeWidth="3"
                             fill="none"
                           />
@@ -906,7 +1125,7 @@ export default function PersonsListPage() {
                       />
                       <span className="text-text-muted text-sm">
                         {consultType === "deep"
-                          ? "深掘り相談中..."
+                          ? "詳しく相談しています..."
                           : "相談中..."}
                       </span>
                     </div>
@@ -975,7 +1194,7 @@ export default function PersonsListPage() {
                   disabled={!consultContext.trim()}
                   className="flex-1 py-2.5 inline-flex items-center justify-center border border-jade/30 text-jade bg-transparent rounded-[4px] text-sm cursor-pointer transition-all duration-300 hover:bg-jade hover:text-base disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  <span className="font-display mr-1">✦</span> 深掘り相談
+                  <span className="font-display mr-1">✦</span> 詳細相談
                   <span className="ml-1 text-[10px] text-text-muted">📺</span>
                 </button>
               </div>

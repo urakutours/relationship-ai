@@ -24,6 +24,8 @@ const TOKEN_LIMITS = {
 export interface ConsultResult {
   actionPlan: string;
   costInfo?: CostInfo;
+  isTruncated?: boolean;
+  truncatedContext?: string;
 }
 
 /**
@@ -117,8 +119,12 @@ ${consultationContext}
   const text =
     response.content[0].type === "text" ? response.content[0].text : "";
 
+  const isTruncated = response.stop_reason === "max_tokens";
+
   return {
     actionPlan: text.trim() || "アクションプランを生成できませんでした。",
     costInfo,
+    isTruncated,
+    truncatedContext: isTruncated ? text.trim() : undefined,
   };
 }

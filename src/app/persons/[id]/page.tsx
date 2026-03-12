@@ -49,6 +49,9 @@ export default function PersonDetailPage() {
   const [quickAnalyzing, setQuickAnalyzing] = useState(false);
   const [deepAnalyzing, setDeepAnalyzing] = useState(false);
   const [costInfo, setCostInfo] = useState<CostInfo | null>(null);
+  const [deepTruncated, setDeepTruncated] = useState(false);
+  const [deepTruncatedContext, setDeepTruncatedContext] = useState<string | null>(null);
+  const [continuingDeep, setContinuingDeep] = useState(false);
 
   // ポーリング用
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -231,15 +234,47 @@ export default function PersonDetailPage() {
   const runDeepAnalysis = async () => {
     setDeepAnalyzing(true);
     setCostInfo(null);
+    setDeepTruncated(false);
+    setDeepTruncatedContext(null);
     try {
       const res = await fetch(`/api/persons/${id}/analyze-deep`, { method: "POST" });
       const data = await res.json();
       if (res.ok) {
         setPerson((prev) => prev ? { ...prev, deepNote: data.deepNote, deepNoteUpdatedAt: data.deepNoteUpdatedAt } : prev);
         if (data.costInfo) setCostInfo(data.costInfo);
+        if (data.isTruncated) {
+          setDeepTruncated(true);
+          setDeepTruncatedContext(data.truncatedContext);
+        }
       }
     } catch (err) { console.error("深掘り分析エラー:", err); }
     finally { setDeepAnalyzing(false); }
+  };
+
+  // 続きを読む
+  const continueDeepAnalysis = async () => {
+    if (!deepTruncatedContext) return;
+    setContinuingDeep(true);
+    try {
+      const res = await fetch(`/api/persons/${id}/analyze-continue`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ truncatedContent: deepTruncatedContext }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const newNote = `${person?.deepNote || ""}\n\n${data.continuation}`;
+        setPerson((prev) => prev ? { ...prev, deepNote: newNote.trim() } : prev);
+        if (data.isTruncated) {
+          setDeepTruncatedContext(data.truncatedContext);
+        } else {
+          setDeepTruncated(false);
+          setDeepTruncatedContext(null);
+        }
+        if (data.costInfo) setCostInfo(data.costInfo);
+      }
+    } catch (err) { console.error("続き生成エラー:", err); }
+    finally { setContinuingDeep(false); }
   };
 
   // ===== 相談モーダル =====
@@ -304,7 +339,7 @@ export default function PersonDetailPage() {
         setConsultSaved(true);
         if (data.costInfo) setConsultCostInfo(data.costInfo);
       } else {
-        setConsultResult(data.error || "深掘り相談処理に失敗しました");
+        setConsultResult(data.error || "詳細相談処理に失敗しました");
       }
     } catch {
       setConsultResult("ネットワークエラーが発生しました");
@@ -510,7 +545,7 @@ export default function PersonDetailPage() {
           <div className="flex items-center gap-3">
             {person.quickNoteUpdatedAt && <span className="text-[11px] text-text-muted">{formatDate(person.quickNoteUpdatedAt)}</span>}
             <button onClick={runQuickAnalysis} disabled={quickAnalyzing} className="text-[12px] text-text-secondary hover:text-gold transition-colors disabled:opacity-40">
-              {quickAnalyzing ? "分析中..." : "再生成"}
+              {quickAnalyzing ? "まとめています..." : "更新する"}
             </button>
           </div>
         </div>
@@ -518,7 +553,7 @@ export default function PersonDetailPage() {
         {quickAnalyzing ? (
           <div className="flex items-center justify-center py-8 gap-3">
             <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
-            <span className="text-text-muted text-sm">分析中...</span>
+            <span className="text-text-muted text-sm">まとめています...</span>
           </div>
         ) : person.quickNote ? (
           <>
@@ -542,7 +577,7 @@ export default function PersonDetailPage() {
         ) : (
           <div className="text-center py-6">
             <p className="text-text-muted text-sm mb-3">まだ分析が実行されていません</p>
-            <button onClick={runQuickAnalysis} className="btn-ghost text-sm">クイック分析を実行</button>
+            <button onClick={runQuickAnalysis} className="btn-ghost text-sm">概要をまとめる</button>
           </div>
         )}
       </div>
@@ -556,25 +591,43 @@ export default function PersonDetailPage() {
         {deepAnalyzing ? (
           <div className="flex items-center justify-center py-10 gap-3">
             <div className="w-5 h-5 border-2 border-jade border-t-transparent rounded-full animate-spin" />
-            <span className="text-text-muted text-sm">深掘り分析中... 少々お待ちください</span>
+            <span className="text-text-muted text-sm">詳しく分析しています... 少々お待ちください</span>
           </div>
         ) : person.deepNote ? (
           <>
             <div className="markdown-body text-sm">
               <ReactMarkdown>{person.deepNote}</ReactMarkdown>
             </div>
+            {deepTruncated && (
+              <div className="mt-3">
+                <button
+                  onClick={continueDeepAnalysis}
+                  disabled={continuingDeep}
+                  className="text-[12px] text-jade hover:text-gold transition-colors disabled:opacity-40 flex items-center gap-1.5"
+                >
+                  {continuingDeep ? (
+                    <>
+                      <span className="w-3 h-3 border border-jade border-t-transparent rounded-full animate-spin" />
+                      続きを生成中...
+                    </>
+                  ) : (
+                    "続きを読む →"
+                  )}
+                </button>
+              </div>
+            )}
             <div className="mt-4 pt-4 border-t border-border-subtle">
-              <button onClick={runDeepAnalysis} className="text-[12px] text-text-secondary hover:text-jade transition-colors">再生成する</button>
+              <button onClick={runDeepAnalysis} className="text-[12px] text-text-secondary hover:text-jade transition-colors">更新する</button>
             </div>
           </>
         ) : (
           <div className="text-center py-6">
             <p className="text-text-muted text-sm mb-1">より詳しい分析を実行できます</p>
-            <p className="text-text-muted text-[11px] mb-4">生成には少し時間がかかります</p>
+            <p className="text-text-muted text-[11px] mb-4">少し時間がかかります</p>
             <button onClick={runDeepAnalysis} disabled={deepAnalyzing}
               className="inline-flex items-center gap-2 px-6 py-2.5 border border-jade-dim text-jade bg-transparent rounded-[4px] text-sm hover:bg-jade hover:text-base transition-all duration-300 disabled:opacity-40">
               <span className="text-lg leading-none">🔍</span>
-              詳細分析を実行する
+              詳しく分析する
             </button>
           </div>
         )}
@@ -618,7 +671,7 @@ export default function PersonDetailPage() {
                     <div className="text-center py-4">
                       <div className="relative w-16 h-16 mx-auto mb-3">
                         <svg className="w-full h-full -rotate-90" viewBox="0 0 64 64">
-                          <circle cx="32" cy="32" r="28" stroke="rgba(201,168,76,0.15)" strokeWidth="3" fill="none" />
+                          <circle cx="32" cy="32" r="28" stroke="rgba(219,145,79,0.15)" strokeWidth="3" fill="none" />
                           <circle cx="32" cy="32" r="28" stroke="#7ec8c0" strokeWidth="3" fill="none" strokeLinecap="round"
                             strokeDasharray={`${2 * Math.PI * 28}`}
                             strokeDashoffset={`${2 * Math.PI * 28 * (countdown / 3)}`}
@@ -636,7 +689,7 @@ export default function PersonDetailPage() {
                     <div className="flex items-center justify-center py-6 gap-3">
                       <div className={`w-5 h-5 border-2 ${consultType === "deep" ? "border-jade" : "border-gold"} border-t-transparent rounded-full animate-spin`} />
                       <span className="text-text-muted text-sm">
-                        {consultType === "deep" ? "深掘り相談中..." : "相談中..."}
+                        {consultType === "deep" ? "詳細相談中..." : "相談中..."}
                       </span>
                     </div>
                   )}
@@ -681,7 +734,7 @@ export default function PersonDetailPage() {
                 </button>
                 <button onClick={startDeepCountdown} disabled={!consultContext.trim()}
                   className="flex-1 py-2.5 inline-flex items-center justify-center border border-jade/30 text-jade bg-transparent rounded-[4px] text-sm cursor-pointer transition-all duration-300 hover:bg-jade hover:text-base disabled:opacity-40 disabled:cursor-not-allowed">
-                  <span className="font-display mr-1">✦</span> 深掘り相談
+                  <span className="font-display mr-1">✦</span> 詳細相談
                   <span className="ml-1 text-[10px] text-text-muted">📺</span>
                 </button>
               </div>
