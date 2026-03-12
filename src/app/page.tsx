@@ -79,9 +79,6 @@ export default function HomePage() {
         <p className="font-display text-lg text-text-secondary mt-1">
           {today.getFullYear()} — {WEEKDAYS[today.getDay()]}曜日
         </p>
-        <p className="text-xs text-text-muted mt-1">
-          {today.toLocaleDateString(LOCALE, { year: "numeric", month: "long", day: "numeric" })}
-        </p>
       </div>
 
       {/* プロフィール未登録バナー */}

@@ -25,8 +25,8 @@ import type { PersonData, CostInfo, LabelData } from "@/lib/types";
 import { RELATIONSHIP_TYPES } from "@/lib/types";
 
 const LABEL_PRESET_COLORS = [
-  '#db914f', '#e8c547', '#a3d977', '#4ecf82', '#7ec8c0', '#4ab3e8',
-  '#5b8dee', '#7c6df0', '#b06def', '#e86baa', '#f06b6b', '#94a3b8',
+  '#b8622a', '#a08c2a', '#4a8a2a', '#2a8a5a', '#2a7a72', '#2a6a9a',
+  '#2a4a9a', '#4a2a9a', '#7a2a9a', '#9a2a6a', '#9a2a2a', '#4a5568',
 ];
 
 /** 相性スコア→星表示 */
@@ -146,21 +146,25 @@ function SortablePersonCard({
             {scoreToStars(person.compatibilityScore)}
           </span>
 
+          {/* 相談アイコン */}
+          <div className="relative group/consult">
+            <button
+              onClick={(e) => onConsult(e, person)}
+              className="p-1.5 rounded text-text-muted hover:text-gold transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+            </button>
+            <span className="absolute bottom-full right-0 mb-1 px-2 py-1 text-xs whitespace-nowrap bg-[#1a1a24] border border-gold/20 rounded opacity-0 group-hover/consult:opacity-100 transition-opacity pointer-events-none font-['Noto_Serif_JP']">
+              この人物について相談する
+            </span>
+          </div>
+
           {/* ︙ メニューボタン */}
           <button
             onClick={(e) => onMenuOpen(e, person)}
             className="text-text-muted hover:text-text-secondary transition-colors text-sm px-1 opacity-0 group-hover:opacity-100"
           >
             ︙
-          </button>
-        </div>
-
-        <div className="flex items-center mt-2 pl-7">
-          <button
-            onClick={(e) => onConsult(e, person)}
-            className="text-jade text-xs hover:text-gold transition-colors"
-          >
-            この人物について相談する ›
           </button>
         </div>
       </div>
@@ -218,24 +222,27 @@ function SortablePersonCard({
               ))}
             </div>
             <div className="flex items-center justify-between">
-              <button
-                onClick={(e) => onConsult(e, person)}
-                className="text-jade text-xs hover:text-gold transition-colors"
-              >
-                この人物について相談する ›
-              </button>
               <span className="text-xs text-gold">
                 {scoreToStars(person.compatibilityScore)}
               </span>
             </div>
           </div>
 
-          <button
-            onClick={(e) => onMenuOpen(e, person)}
-            className="text-text-muted hover:text-text-secondary transition-colors text-sm shrink-0"
-          >
-            ︙
-          </button>
+          <div className="flex items-center gap-1 shrink-0">
+            {/* 相談アイコン */}
+            <button
+              onClick={(e) => onConsult(e, person)}
+              className="p-1.5 rounded text-text-muted hover:text-gold transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+            </button>
+            <button
+              onClick={(e) => onMenuOpen(e, person)}
+              className="text-text-muted hover:text-text-secondary transition-colors text-sm shrink-0"
+            >
+              ︙
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -678,12 +685,14 @@ export default function PersonsListPage() {
                   key={color}
                   type="button"
                   onClick={() => setNewLabelColor(color)}
-                  className="w-6 h-6 rounded-full shrink-0 transition-transform duration-150 hover:scale-[1.2]"
+                  className="w-6 h-6 rounded-full shrink-0 transition-transform duration-150 hover:scale-[1.2] flex items-center justify-center text-[10px] text-white font-bold"
                   style={{
                     backgroundColor: color,
                     boxShadow: newLabelColor === color ? '0 0 0 2px #fff' : 'none',
                   }}
-                />
+                >
+                  {newLabelColor === color ? '✓' : ''}
+                </button>
               ))}
             </div>
             <div className="flex items-center gap-2">
@@ -844,19 +853,25 @@ export default function PersonsListPage() {
                   <span className="ml-auto text-xs text-gold tracking-wider">
                     {scoreToStars(person.compatibilityScore)}
                   </span>
+
+                  {/* 相談アイコン */}
+                  <div className="relative group/consult">
+                    <button
+                      onClick={(e) => openConsultModal(e, person)}
+                      className="p-1.5 rounded text-text-muted hover:text-gold transition-colors"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+                    </button>
+                    <span className="absolute bottom-full right-0 mb-1 px-2 py-1 text-xs whitespace-nowrap bg-[#1a1a24] border border-gold/20 rounded opacity-0 group-hover/consult:opacity-100 transition-opacity pointer-events-none font-['Noto_Serif_JP']">
+                      この人物について相談する
+                    </span>
+                  </div>
+
                   <button
                     onClick={(e) => openMenu(e, person)}
                     className="text-text-muted hover:text-text-secondary transition-colors text-sm px-1 opacity-0 group-hover:opacity-100"
                   >
                     ︙
-                  </button>
-                </div>
-                <div className="flex items-center mt-2">
-                  <button
-                    onClick={(e) => openConsultModal(e, person)}
-                    className="text-jade text-xs hover:text-gold transition-colors"
-                  >
-                    この人物について相談する ›
                   </button>
                 </div>
               </div>

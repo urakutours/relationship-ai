@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
-import type { DivinationResult, CostInfo } from "@/lib/types";
+import type { CostInfo } from "@/lib/types";
 import { BirthDateSelect } from "@/components/birth-date-select";
 
 // 性別の選択肢（内部値→表示ラベル）
@@ -44,9 +44,6 @@ export default function ProfilePage() {
   const [birthCountry, setBirthCountry] = useState("JP");
   const [mbti, setMbti] = useState("");
   const [memoTags, setMemoTags] = useState<string[]>([""]);
-
-  // 占術プレビュー
-  const [divPreview, setDivPreview] = useState<DivinationResult | null>(null);
 
   // 分析ノート
   const [quickNote, setQuickNote] = useState<string | null>(null);
@@ -95,21 +92,6 @@ export default function ProfilePage() {
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
-
-  // 占術プレビュー
-  const birthDate = buildBirthDate();
-  const updateDivPreview = useCallback(async () => {
-    if (!birthDate && !birthYear) { setDivPreview(null); return; }
-    try {
-      const params = new URLSearchParams();
-      if (birthDate) params.set("birthDate", birthDate);
-      if (birthYear) params.set("birthYear", birthYear);
-      const res = await fetch(`/api/profile/divination?${params}`);
-      if (res.ok) { const data = await res.json(); setDivPreview(data.divination); }
-    } catch {}
-  }, [birthDate, birthYear]);
-
-  useEffect(() => { updateDivPreview(); }, [updateDivPreview]);
 
   // メモタグ操作
   const addMemoTag = () => setMemoTags((prev) => [...prev, ""]);
@@ -327,42 +309,6 @@ export default function ProfilePage() {
           </form>
         </div>
 
-        {/* 右: 占術プレビュー */}
-        {divPreview && (
-          <div className="w-full md:w-64 md:shrink-0 md:pt-[72px]">
-            <div className="card md:sticky md:top-10">
-              <h3 className="text-xs text-text-muted uppercase font-display tracking-widest mb-4">Divination Preview</h3>
-              <div className="space-y-3">
-                {divPreview.solarSign && (<div className="flex items-center justify-between text-sm"><span className="text-text-muted text-xs">星座</span><span className="text-gold">{divPreview.solarSign}</span></div>)}
-                {divPreview.numerology && (<div className="flex items-center justify-between text-sm"><span className="text-text-muted text-xs">誕生数</span><span className="text-gold">{divPreview.numerology}</span></div>)}
-                {divPreview.kyusei && (<div className="flex items-center justify-between text-sm"><span className="text-text-muted text-xs">九星</span><span className="text-jade">{divPreview.kyusei}</span></div>)}
-                {divPreview.dayPillar && (<div className="flex items-center justify-between text-sm"><span className="text-text-muted text-xs">日柱</span><span className="text-jade">{divPreview.dayPillar}</span></div>)}
-                {divPreview.wuxingProfile && (
-                  <div className="pt-2 border-t border-border-subtle">
-                    <span className="text-text-muted text-[10px] uppercase font-display tracking-widest">Wuxing</span>
-                    <div className="mt-2 space-y-1.5">
-                      {[
-                        { label: "木", value: divPreview.wuxingProfile.wood },
-                        { label: "火", value: divPreview.wuxingProfile.fire },
-                        { label: "土", value: divPreview.wuxingProfile.earth },
-                        { label: "金", value: divPreview.wuxingProfile.metal },
-                        { label: "水", value: divPreview.wuxingProfile.water },
-                      ].map((el) => (
-                        <div key={el.label} className="flex items-center gap-2">
-                          <span className="text-xs text-text-secondary w-4">{el.label}</span>
-                          <div className="flex-1 h-1 bg-base rounded-full overflow-hidden">
-                            <div className="h-full bg-gold rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (el.value / 8) * 100)}%` }} />
-                          </div>
-                          <span className="text-[10px] text-text-muted w-4 text-right">{el.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ===== 自分の特性分析セクション ===== */}

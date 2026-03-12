@@ -201,19 +201,21 @@ select.input-underline option {
   counter-increment: item;
   color: #c5c5cd;
   line-height: 1.8;
-  padding-left: 2rem;
+  padding-left: 2.25rem;
   position: relative;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.6rem;
+  align-items: flex-start;
 }
 .markdown-body ol li::before {
   content: counter(item) ".";
   color: #db914f;
   font-family: 'Cormorant Garamond', serif;
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   font-weight: 700;
   position: absolute;
   left: 0;
-  line-height: 1.5;
+  top: 0;
+  line-height: 1.4;
 }
 .markdown-body hr {
   display: none;

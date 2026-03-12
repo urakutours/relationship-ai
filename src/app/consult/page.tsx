@@ -142,11 +142,14 @@ export default function ConsultHistoryPage() {
                 className="card !py-0 overflow-hidden"
               >
                 {/* ヘッダー行（クリックで展開） */}
-                <button
+                <div
                   onClick={() =>
                     setExpandedId(isExpanded ? null : log.id)
                   }
-                  className="w-full flex items-center gap-3 py-3 px-0 text-left group"
+                  className="w-full flex items-center gap-3 py-3 px-0 text-left group cursor-pointer"
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === 'Enter' && setExpandedId(isExpanded ? null : log.id)}
                 >
                   {/* 展開矢印 */}
                   <span
@@ -190,7 +193,7 @@ export default function ConsultHistoryPage() {
                   >
                     ✕
                   </button>
-                </button>
+                </div>
 
                 {/* 展開コンテンツ */}
                 {isExpanded && (
