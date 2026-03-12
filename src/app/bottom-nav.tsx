@@ -2,13 +2,51 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
 
-const NAV_ITEMS = [
-  { href: "/", label: "ホーム", icon: "⌂" },
-  { href: "/persons", label: "人物", icon: "♟" },
-  { href: "/consult", label: "相談", icon: "◈" },
-  { href: "/profile", label: "自分", icon: "◉" },
-] as const;
+const NAV_ITEMS: { href: string; label: string; icon: ReactNode }[] = [
+  {
+    href: "/",
+    label: "ホーム",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8" />
+        <path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      </svg>
+    ),
+  },
+  {
+    href: "/persons",
+    label: "人物",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+      </svg>
+    ),
+  },
+  {
+    href: "/consult",
+    label: "相談",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+      </svg>
+    ),
+  },
+  {
+    href: "/profile",
+    label: "自分",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="8" r="5" />
+        <path d="M20 21a8 8 0 0 0-16 0" />
+      </svg>
+    ),
+  },
+];
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -30,7 +68,7 @@ export function BottomNav() {
                   ${isActive ? "text-gold" : "text-text-secondary"}
                 `}
               >
-                <span className="text-lg font-display leading-none">{item.icon}</span>
+                <span className="leading-none">{item.icon}</span>
                 <span className="text-[10px] tracking-wider">{item.label}</span>
                 {isActive && (
                   <span className="absolute bottom-1 w-4 h-[2px] bg-gold rounded-full" />

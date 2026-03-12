@@ -236,7 +236,7 @@ export default function ProfilePage() {
       <div className="flex flex-col md:flex-row gap-10">
         {/* 左: フォーム */}
         <div className="flex-1 max-w-xl">
-          <h1 className="font-display text-[32px] font-light text-gold tracking-wide mb-8">Profile</h1>
+          <h1 className="font-display text-[32px] font-light text-gold tracking-wide mb-8">プロフィール</h1>
 
           <form onSubmit={handleSave} className="space-y-0">
             <div className="py-4">
@@ -249,7 +249,7 @@ export default function ProfilePage() {
               <BirthDateSelect birthYear={birthYear} birthMonth={birthMonth} birthDay={birthDay} onYearChange={setBirthYear} onMonthChange={setBirthMonth} onDayChange={setBirthDay} />
             </div>
 
-            <hr className="divider" />
+            <div className="h-4" />
 
             <div className="py-4">
               <label className="block text-xs text-text-secondary mb-2 tracking-wide">性別 <span className="text-text-muted">(任意)</span></label>
@@ -280,7 +280,7 @@ export default function ProfilePage() {
               <input type="text" value={birthCountry} onChange={(e) => setBirthCountry(e.target.value)} placeholder="JP" className="input-underline" />
             </div>
 
-            <hr className="divider" />
+            <div className="h-4" />
 
             <div className="py-4">
               <label className="block text-xs text-text-secondary mb-2 tracking-wide">MBTI <span className="text-text-muted">(任意)</span></label>
@@ -312,15 +312,13 @@ export default function ProfilePage() {
       </div>
 
       {/* ===== 自分の特性分析セクション ===== */}
-      <hr className="divider" />
-
       <div className="space-y-6">
-        <h2 className="font-display text-[24px] font-light text-gold tracking-wide">Self Analysis</h2>
+        <h2 className="font-display text-[24px] font-light text-gold tracking-wide">自己分析</h2>
 
         {/* クイック分析 */}
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-display text-lg text-gold tracking-wide">Quick Analysis</h3>
+            <h3 className="font-display text-lg text-gold tracking-wide">簡易分析</h3>
             <div className="flex items-center gap-3">
               {quickNoteUpdatedAt && <span className="text-[11px] text-text-muted">{formatDate(quickNoteUpdatedAt)}</span>}
               <button onClick={runQuickAnalysis} disabled={quickAnalyzing} className="text-[12px] text-text-secondary hover:text-gold transition-colors disabled:opacity-40">
@@ -347,7 +345,7 @@ export default function ProfilePage() {
         {/* 深掘り分析 */}
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-display text-lg text-jade tracking-wide">Deep Analysis</h3>
+            <h3 className="font-display text-lg text-jade tracking-wide">詳細分析</h3>
             {deepNoteUpdatedAt && <span className="text-[11px] text-text-muted">{formatDate(deepNoteUpdatedAt)}</span>}
           </div>
 

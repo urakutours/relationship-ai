@@ -99,7 +99,7 @@ export default function HomePage() {
       {/* 今日のアドバイス */}
       <div className="card">
         <h2 className="font-display text-xl text-gold mb-5 tracking-wide">
-          Today&apos;s Guidance
+          今日のガイダンス
         </h2>
 
         <div className="flex items-center gap-6 mb-6">
@@ -157,23 +157,23 @@ export default function HomePage() {
       </div>
 
       {/* ナビゲーションカード */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         {[
           {
             href: "/persons/new",
-            title: "Register",
+            title: "登録",
             subtitle: "人物を登録する",
             desc: "関わりのある人の情報を登録",
           },
           {
             href: "/persons",
-            title: "People",
-            subtitle: "人物一覧",
+            title: "人物一覧",
+            subtitle: "登録済みの人物",
             desc: "登録済みの人物情報を確認",
           },
           {
             href: "/consult",
-            title: "Consult",
+            title: "相談",
             subtitle: "ディープ相談",
             desc: "AIがアクションプランを提案",
           },

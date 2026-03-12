@@ -41,10 +41,22 @@ export interface PersonInput {
   observations: string[];
 }
 
+// 観察メモカテゴリ
+export const OBSERVATION_CATEGORIES = [
+  { value: "behavior", label: "行動パターン", icon: "🔄" },
+  { value: "preference", label: "好み・趣味", icon: "❤️" },
+  { value: "ng", label: "地雷・NG事項", icon: "⚠️" },
+  { value: "success", label: "成功体験", icon: "✨" },
+  { value: "change", label: "最近の変化", icon: "📈" },
+  { value: "other", label: "その他", icon: "📝" },
+] as const;
+export type ObservationCategory = (typeof OBSERVATION_CATEGORIES)[number]["value"];
+
 // 観察メモ
 export interface ObservationData {
   id: string;
   content: string;
+  category: ObservationCategory | null;
   createdAt: string;
 }
 

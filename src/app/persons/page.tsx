@@ -47,6 +47,44 @@ const PLACEHOLDERS: Record<string, string> = {
 const DEFAULT_PLACEHOLDER =
   "この人との関係で悩んでいることや、うまくやりたい場面を入力してください";
 
+/** 人物カードのサブ情報テキストを生成 */
+function getSubInfo(person: PersonData): string {
+  const parts: string[] = [];
+  if (person.consultCount > 0) {
+    parts.push(`${person.consultCount}回相談`);
+  }
+  if (person.observations?.length > 0) {
+    const latest = person.observations[0].content;
+    parts.push(latest.length > 20 ? latest.slice(0, 20) + "…" : latest);
+  }
+  return parts.join("  ·  ");
+}
+
+/** ラベルを最大N件+残り表示 */
+function LabelBadges({ labels, max = 2 }: { labels: PersonData["labels"]; max?: number }) {
+  if (!labels || labels.length === 0) return null;
+  const shown = labels.slice(0, max);
+  const remaining = labels.length - max;
+  return (
+    <>
+      {shown.map((pl) => (
+        <span
+          key={pl.labelId}
+          className="inline-block px-1.5 py-0.5 rounded text-[10px] text-white/90"
+          style={{ backgroundColor: pl.label.color }}
+        >
+          {pl.label.name}
+        </span>
+      ))}
+      {remaining > 0 && (
+        <span className="inline-block px-1 py-0.5 rounded text-[10px] text-text-muted border border-border-subtle">
+          +{remaining}
+        </span>
+      )}
+    </>
+  );
+}
+
 // ===== ソート可能な人物カード =====
 function SortablePersonCard({
   person,
@@ -132,15 +170,7 @@ function SortablePersonCard({
           </span>
 
           {/* ラベルバッジ */}
-          {person.labels?.map((pl) => (
-            <span
-              key={pl.labelId}
-              className="inline-block px-1.5 py-0.5 rounded text-[10px] text-white/90"
-              style={{ backgroundColor: pl.label.color }}
-            >
-              {pl.label.name}
-            </span>
-          ))}
+          <LabelBadges labels={person.labels} max={2} />
 
           <span className="ml-auto text-xs text-gold tracking-wider">
             {scoreToStars(person.compatibilityScore)}
@@ -167,6 +197,10 @@ function SortablePersonCard({
             ︙
           </button>
         </div>
+        {/* サブ情報行 */}
+        {getSubInfo(person) && (
+          <p className="text-[11px] text-text-muted mt-1 ml-7 truncate">{getSubInfo(person)}</p>
+        )}
       </div>
 
       {/* === モバイルカード === */}
@@ -211,21 +245,16 @@ function SortablePersonCard({
                   未分析
                 </span>
               )}
-              {person.labels?.map((pl) => (
-                <span
-                  key={pl.labelId}
-                  className="inline-block px-1 py-0.5 rounded text-[9px] text-white/90 shrink-0"
-                  style={{ backgroundColor: pl.label.color }}
-                >
-                  {pl.label.name}
-                </span>
-              ))}
+              <LabelBadges labels={person.labels} max={2} />
             </div>
             <div className="flex items-center justify-between">
               <span className="text-xs text-gold">
                 {scoreToStars(person.compatibilityScore)}
               </span>
             </div>
+            {getSubInfo(person) && (
+              <p className="text-[10px] text-text-muted mt-1 truncate">{getSubInfo(person)}</p>
+            )}
           </div>
 
           <div className="flex items-center gap-1 shrink-0">
@@ -305,6 +334,25 @@ export default function PersonsListPage() {
     fetchPersons();
     fetchLabels();
   }, []);
+
+  // スクロール位置復元（データロード完了後）
+  useEffect(() => {
+    if (!loading) {
+      const saved = sessionStorage.getItem("persons-scroll");
+      if (saved) {
+        requestAnimationFrame(() => {
+          window.scrollTo(0, parseInt(saved, 10));
+          sessionStorage.removeItem("persons-scroll");
+        });
+      }
+    }
+  }, [loading]);
+
+  // 人物詳細へ遷移時にスクロール位置を保存
+  const navigateToPerson = (personId: string) => {
+    sessionStorage.setItem("persons-scroll", String(window.scrollY));
+    router.push(`/persons/${personId}`);
+  };
 
   const fetchPersons = async () => {
     try {
@@ -630,7 +678,7 @@ export default function PersonsListPage() {
       {/* ヘッダー */}
       <div className="flex items-center justify-between">
         <h1 className="font-display text-[32px] font-light text-gold tracking-wide">
-          People
+          人物
         </h1>
         <div className="flex items-center gap-2">
           <button
@@ -648,9 +696,21 @@ export default function PersonsListPage() {
       {/* ラベル管理パネル */}
       {showLabelManager && (
         <div className="card space-y-3">
-          <h3 className="text-xs text-text-muted uppercase font-display tracking-widest">
-            Label Management
-          </h3>
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs text-text-muted uppercase font-display tracking-widest">
+              ラベル管理
+            </h3>
+            <button
+              onClick={() => setShowLabelManager(false)}
+              className="text-text-muted hover:text-text-primary transition-colors p-1 -mr-1"
+              aria-label="ラベル管理を閉じる"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
 
           {/* 既存ラベル一覧 */}
           <div className="flex flex-wrap gap-2">
@@ -767,7 +827,17 @@ export default function PersonsListPage() {
       {/* 人物一覧 */}
       {persons.length === 0 ? (
         <div className="card text-center py-16">
-          <p className="text-text-muted mb-4">まだ人物が登録されていません</p>
+          <svg width="64" height="64" viewBox="0 0 64 64" fill="none" className="mx-auto mb-4 text-text-muted opacity-40">
+            <circle cx="24" cy="20" r="8" stroke="currentColor" strokeWidth="2" />
+            <path d="M8 48c0-8.837 7.163-16 16-16s16 7.163 16 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <circle cx="44" cy="16" r="3" stroke="currentColor" strokeWidth="2" />
+            <line x1="44" y1="10" x2="44" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <line x1="44" y1="26" x2="44" y2="22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <line x1="50" y1="16" x2="54" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <line x1="34" y1="16" x2="38" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+          <p className="text-text-secondary text-sm mb-1">まだ人物が登録されていません</p>
+          <p className="text-text-muted text-xs mb-5">右上の「新規登録」から最初の人物を登録しましょう。</p>
           <Link href="/persons/new" className="btn-ghost">
             最初の人物を登録する
           </Link>
@@ -795,7 +865,7 @@ export default function PersonsListPage() {
                   person={person}
                   onConsult={openConsultModal}
                   onMenuOpen={openMenu}
-                  onClick={() => router.push(`/persons/${person.id}`)}
+                  onClick={() => navigateToPerson(person.id)}
                   isRenaming={renamingPersonId === person.id}
                   renameValue={renameValue}
                   onRenameChange={setRenameValue}
@@ -813,7 +883,7 @@ export default function PersonsListPage() {
             return (
               <div
                 key={person.id}
-                onClick={() => router.push(`/persons/${person.id}`)}
+                onClick={() => navigateToPerson(person.id)}
                 className="card !py-3 cursor-pointer hover:border-gold-dim transition-colors duration-200 group"
               >
                 <div className="flex items-center gap-3">
@@ -841,15 +911,7 @@ export default function PersonsListPage() {
                   <span className="inline-block px-2 py-0.5 border border-border-subtle rounded-[4px] text-[11px] text-text-secondary">
                     {person.relationship}
                   </span>
-                  {person.labels?.map((pl) => (
-                    <span
-                      key={pl.labelId}
-                      className="inline-block px-1.5 py-0.5 rounded text-[10px] text-white/90"
-                      style={{ backgroundColor: pl.label.color }}
-                    >
-                      {pl.label.name}
-                    </span>
-                  ))}
+                  <LabelBadges labels={person.labels} max={2} />
                   <span className="ml-auto text-xs text-gold tracking-wider">
                     {scoreToStars(person.compatibilityScore)}
                   </span>
@@ -874,6 +936,10 @@ export default function PersonsListPage() {
                     ︙
                   </button>
                 </div>
+                {/* サブ情報行 */}
+                {getSubInfo(person) && (
+                  <p className="text-[11px] text-text-muted mt-1 truncate">{getSubInfo(person)}</p>
+                )}
               </div>
             );
           })}
@@ -1159,7 +1225,7 @@ export default function PersonsListPage() {
                     <div className="py-4">
                       <h4 className="font-display text-base mb-3 tracking-wide">
                         {consultType === "deep" ? (
-                          <span className="text-jade">✦ Deep Insight</span>
+                          <span className="text-jade">✦ 詳細相談</span>
                         ) : (
                           <span className="text-gold">Action Plan</span>
                         )}

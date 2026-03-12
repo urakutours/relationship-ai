@@ -4,12 +4,13 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
-import type { PersonData, CostInfo, ObservationData, ConsultationLogData, CompressedMemory } from "@/lib/types";
+import type { PersonData, CostInfo, ObservationData, ConsultationLogData, CompressedMemory, ObservationCategory } from "@/lib/types";
 import {
   RELATIONSHIP_TYPES,
   GENDER_OPTIONS,
   BLOOD_TYPE_OPTIONS,
   BIRTH_ORDER_OPTIONS,
+  OBSERVATION_CATEGORIES,
 } from "@/lib/types";
 import { BirthDateSelect } from "@/components/birth-date-select";
 
@@ -37,6 +38,27 @@ const PLACEHOLDERS: Record<string, string> = {
   "友人": "久しぶりに連絡を取りたいが、どんな話題から入るといい？",
 };
 const DEFAULT_PLACEHOLDER = "この人との関係で悩んでいることや、うまくやりたい場面を入力してください";
+
+/** カテゴリ情報を取得 */
+function getCategoryInfo(cat: string | null) {
+  return OBSERVATION_CATEGORIES.find(c => c.value === cat) || OBSERVATION_CATEGORIES[OBSERVATION_CATEGORIES.length - 1];
+}
+
+/** 相対時間表示 */
+function relativeTime(dateStr: string): string {
+  const now = Date.now();
+  const d = new Date(dateStr).getTime();
+  const diffMs = now - d;
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHr = Math.floor(diffMs / 3600000);
+  const diffDay = Math.floor(diffMs / 86400000);
+  if (diffMin < 1) return "たった今";
+  if (diffMin < 60) return `${diffMin}分前`;
+  if (diffHr < 24) return `${diffHr}時間前`;
+  if (diffDay < 7) return `${diffDay}日前`;
+  const dt = new Date(dateStr);
+  return `${dt.getFullYear()}/${dt.getMonth() + 1}/${dt.getDate()}`;
+}
 
 export default function PersonDetailPage() {
   const params = useParams();
@@ -76,6 +98,18 @@ export default function PersonDetailPage() {
   const [newObservations, setNewObservations] = useState<string[]>([]);
   const [deleteObservationIds, setDeleteObservationIds] = useState<string[]>([]);
   const [editSaving, setEditSaving] = useState(false);
+
+  // 観察メモインライン編集
+  const [inlineEditId, setInlineEditId] = useState<string | null>(null);
+  const [inlineEditContent, setInlineEditContent] = useState("");
+  const [inlineEditCategory, setInlineEditCategory] = useState<ObservationCategory>("other");
+  const [inlineEditSaving, setInlineEditSaving] = useState(false);
+
+  // 観察メモ新規追加（非編集モード）
+  const [showAddMemo, setShowAddMemo] = useState(false);
+  const [addMemoContent, setAddMemoContent] = useState("");
+  const [addMemoCategory, setAddMemoCategory] = useState<ObservationCategory>("other");
+  const [addMemoSaving, setAddMemoSaving] = useState(false);
 
   // 相談モーダル
   const [showConsultModal, setShowConsultModal] = useState(false);
@@ -252,6 +286,62 @@ export default function PersonDetailPage() {
   };
   const removeNewObservation = (index: number) => {
     setNewObservations(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // インライン編集開始
+  const startInlineEdit = (obs: ObservationData) => {
+    setInlineEditId(obs.id);
+    setInlineEditContent(obs.content);
+    setInlineEditCategory((obs.category || "other") as ObservationCategory);
+  };
+  const cancelInlineEdit = () => { setInlineEditId(null); };
+  const saveInlineEdit = async () => {
+    if (!inlineEditId || !inlineEditContent.trim()) return;
+    setInlineEditSaving(true);
+    try {
+      const res = await fetch(`/api/persons/${id}/memos/${inlineEditId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: inlineEditContent.trim(), category: inlineEditCategory }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setPerson(prev => prev ? {
+          ...prev,
+          observations: prev.observations.map(o => o.id === inlineEditId ? { ...o, content: updated.content, category: updated.category } : o),
+        } : prev);
+        setInlineEditId(null);
+      }
+    } catch { alert("更新に失敗しました"); }
+    finally { setInlineEditSaving(false); }
+  };
+
+  // 非編集モードでの観察メモ追加
+  const saveAddMemo = async () => {
+    if (!addMemoContent.trim()) return;
+    setAddMemoSaving(true);
+    try {
+      const res = await fetch(`/api/persons/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          observations: {
+            add: [{ content: addMemoContent.trim(), category: addMemoCategory }],
+            delete: [],
+          },
+          _reanalyze: true,
+        }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setPerson(updated);
+        setAddMemoContent("");
+        setAddMemoCategory("other");
+        setShowAddMemo(false);
+        startPolling();
+      }
+    } catch { alert("追加に失敗しました"); }
+    finally { setAddMemoSaving(false); }
   };
 
   // クイック分析
@@ -596,13 +686,17 @@ export default function PersonDetailPage() {
           <div>
             <label className="block text-xs text-text-secondary mb-2">観察メモ</label>
             <div className="space-y-2">
-              {editObservations.map((obs) => (
-                <div key={obs.id} className="flex gap-3 items-center">
-                  <span className="flex-1 text-sm text-text-primary py-1 border-b border-border-subtle">{obs.content}</span>
-                  <button type="button" onClick={() => markObservationForDelete(obs.id)}
-                    className="text-text-muted hover:text-danger transition-colors text-xs shrink-0">✕</button>
-                </div>
-              ))}
+              {editObservations.map((obs) => {
+                const catInfo = getCategoryInfo(obs.category);
+                return (
+                  <div key={obs.id} className="flex gap-2 items-center">
+                    <span className="text-[13px] shrink-0">{catInfo.icon}</span>
+                    <span className="flex-1 text-sm text-text-primary py-1 border-b border-border-subtle">{obs.content}</span>
+                    <button type="button" onClick={() => markObservationForDelete(obs.id)}
+                      className="text-text-muted hover:text-danger transition-colors text-xs shrink-0">✕</button>
+                  </div>
+                );
+              })}
               {newObservations.map((obs, index) => (
                 <div key={`new-${index}`} className="flex gap-3 items-center">
                   <input type="text" value={obs} onChange={(e) => updateNewObservation(index, e.target.value)}
@@ -642,8 +736,111 @@ export default function PersonDetailPage() {
             {person.gender && <p>性別: {person.gender}</p>}
             {person.bloodType && <p>血液型: {person.bloodType}型</p>}
             {person.personalContext && <p>背景: <span className="text-text-primary">{person.personalContext}</span></p>}
-            {person.observations.length > 0 && (
-              <p>観察メモ: <span className="text-text-primary">{person.observations.map((o) => o.content).join("、")}</span></p>
+          </div>
+
+          {/* 観察メモセクション */}
+          <div className="mt-4 pt-4 border-t border-border-subtle">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs text-text-secondary tracking-wide">観察メモ</h3>
+              <button onClick={() => setShowAddMemo(!showAddMemo)}
+                className="text-xs text-jade hover:text-gold transition-colors">
+                {showAddMemo ? "キャンセル" : "+ メモを追加"}
+              </button>
+            </div>
+
+            {/* 新規追加フォーム */}
+            {showAddMemo && (
+              <div className="mb-3 p-3 border border-border-subtle rounded-lg space-y-2">
+                <textarea
+                  value={addMemoContent}
+                  onChange={(e) => setAddMemoContent(e.target.value)}
+                  placeholder="観察した内容を入力..."
+                  rows={2}
+                  className="w-full bg-transparent text-text-primary text-sm outline-none resize-none placeholder:text-text-muted"
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <select value={addMemoCategory} onChange={(e) => setAddMemoCategory(e.target.value as ObservationCategory)}
+                    className="text-[11px] bg-transparent border border-border-subtle rounded px-2 py-1 text-text-secondary outline-none">
+                    {OBSERVATION_CATEGORIES.map(c => (
+                      <option key={c.value} value={c.value}>{c.icon} {c.label}</option>
+                    ))}
+                  </select>
+                  <div className="ml-auto flex gap-2">
+                    <button onClick={() => { setShowAddMemo(false); setAddMemoContent(""); }}
+                      className="text-xs text-text-muted hover:text-text-secondary transition-colors px-2 py-1">キャンセル</button>
+                    <button onClick={saveAddMemo} disabled={!addMemoContent.trim() || addMemoSaving}
+                      className="text-xs text-jade hover:text-gold transition-colors px-2 py-1 disabled:opacity-40">
+                      {addMemoSaving ? "保存中..." : "保存"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {person.observations.length > 0 ? (
+              <div className="space-y-2">
+                {person.observations.map((obs) => {
+                  const catInfo = getCategoryInfo(obs.category);
+                  const isEditing = inlineEditId === obs.id;
+
+                  if (isEditing) {
+                    return (
+                      <div key={obs.id} className="p-3 border border-gold-dim rounded-lg space-y-2">
+                        <textarea
+                          value={inlineEditContent}
+                          onChange={(e) => setInlineEditContent(e.target.value)}
+                          rows={2}
+                          className="w-full bg-transparent text-text-primary text-sm outline-none resize-none"
+                        />
+                        <div className="flex flex-wrap items-center gap-2">
+                          <select value={inlineEditCategory} onChange={(e) => setInlineEditCategory(e.target.value as ObservationCategory)}
+                            className="text-[11px] bg-transparent border border-border-subtle rounded px-2 py-1 text-text-secondary outline-none">
+                            {OBSERVATION_CATEGORIES.map(c => (
+                              <option key={c.value} value={c.value}>{c.icon} {c.label}</option>
+                            ))}
+                          </select>
+                          <div className="ml-auto flex gap-2">
+                            <button onClick={cancelInlineEdit}
+                              className="text-xs text-text-muted hover:text-text-secondary transition-colors px-2 py-1">キャンセル</button>
+                            <button onClick={saveInlineEdit} disabled={!inlineEditContent.trim() || inlineEditSaving}
+                              className="text-xs text-jade hover:text-gold transition-colors px-2 py-1 disabled:opacity-40">
+                              {inlineEditSaving ? "保存中..." : "保存"}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={obs.id} className="group flex items-start gap-2 py-1.5">
+                      <span className="text-[13px] leading-none mt-0.5 shrink-0">{catInfo.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-text-primary">{obs.content}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[10px] text-text-muted">{catInfo.label}</span>
+                          <span className="text-[10px] text-text-muted">·</span>
+                          <span className="text-[10px] text-text-muted">{relativeTime(obs.createdAt)}</span>
+                        </div>
+                      </div>
+                      <button onClick={() => startInlineEdit(obs)}
+                        className="shrink-0 text-text-muted hover:text-gold transition-colors opacity-0 group-hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 mt-0.5"
+                        title="編集">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 20h9" /><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z" />
+                        </svg>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : !showAddMemo && (
+              <div className="flex items-center gap-2">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-text-muted opacity-50 shrink-0">
+                  <path d="M12 20h9" /><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z" />
+                </svg>
+                <p className="text-text-muted text-xs">観察メモがありません。上の「+メモを追加」から記録できます。</p>
+              </div>
             )}
           </div>
         </div>
@@ -692,7 +889,7 @@ export default function PersonDetailPage() {
           {/* クイック分析 */}
           <div className="card">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-display text-lg text-gold tracking-wide">Quick Analysis</h2>
+              <h2 className="font-display text-lg text-gold tracking-wide">簡易分析</h2>
               <div className="flex items-center gap-3">
                 {person.quickNoteUpdatedAt && <span className="text-[11px] text-text-muted">{formatDate(person.quickNoteUpdatedAt)}</span>}
                 <button onClick={runQuickAnalysis} disabled={quickAnalyzing} className="text-[12px] text-text-secondary hover:text-gold transition-colors disabled:opacity-40">
@@ -736,7 +933,7 @@ export default function PersonDetailPage() {
           {/* 深掘り分析 */}
           <div className="card">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-display text-lg text-jade tracking-wide">Deep Analysis</h2>
+              <h2 className="font-display text-lg text-jade tracking-wide">詳細分析</h2>
               {person.deepNoteUpdatedAt && <span className="text-[11px] text-text-muted">{formatDate(person.deepNoteUpdatedAt)}</span>}
             </div>
             {deepAnalyzing ? (
@@ -876,7 +1073,7 @@ export default function PersonDetailPage() {
                       <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] border ${
                         log.consultType === "deep" ? "border-jade/30 text-jade" : "border-border-subtle text-text-secondary"
                       }`}>
-                        {log.consultType === "deep" ? "Deep" : "Standard"}
+                        {log.consultType === "deep" ? "詳細" : "標準"}
                       </span>
                       <span className="flex-1 text-text-muted text-xs truncate min-w-0">
                         {log.context.slice(0, 40)}
@@ -1009,7 +1206,7 @@ export default function PersonDetailPage() {
                     <div className="py-4">
                       <h4 className="font-display text-base mb-3 tracking-wide">
                         {consultType === "deep" ? (
-                          <span className="text-jade">✦ Deep Insight</span>
+                          <span className="text-jade">✦ 詳細相談</span>
                         ) : (
                           <span className="text-gold">Action Plan</span>
                         )}

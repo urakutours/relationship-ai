@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
+import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import type { ConsultationLogData, PersonData } from "@/lib/types";
 
@@ -150,10 +151,17 @@ export default function ConsultHistoryPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="font-display text-[32px] font-light text-gold tracking-wide">
-        History
-      </h1>
+    <div className="space-y-6 pb-20 md:pb-0">
+      <div className="flex items-center justify-between">
+        <h1 className="font-display text-[32px] font-light text-gold tracking-wide">
+          相談履歴
+        </h1>
+        <Link href="/persons"
+          className="inline-flex items-center gap-1.5 px-4 py-2 border border-jade-dim text-jade bg-transparent rounded-[4px] text-sm hover:bg-jade hover:text-base transition-all duration-300">
+          <span className="text-base leading-none">＋</span>
+          新しい相談
+        </Link>
+      </div>
 
       {/* フィルター */}
       <div className="flex items-center gap-3">
@@ -177,8 +185,15 @@ export default function ConsultHistoryPage() {
           <p className="text-text-muted text-sm">読み込み中...</p>
         </div>
       ) : logs.length === 0 ? (
-        <div className="card text-center py-12">
-          <p className="text-text-muted text-sm">相談履歴はまだありません</p>
+        <div className="card text-center py-16">
+          <svg width="64" height="64" viewBox="0 0 64 64" fill="none" className="mx-auto mb-4 text-text-muted opacity-40">
+            <path d="M20 44A18 18 0 1 1 10 32.2L6 50Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="24" cy="30" r="2" fill="currentColor" />
+            <circle cx="32" cy="30" r="2" fill="currentColor" />
+            <circle cx="40" cy="30" r="2" fill="currentColor" />
+          </svg>
+          <p className="text-text-secondary text-sm mb-1">相談履歴がありません</p>
+          <p className="text-text-muted text-xs">気になる人物について相談してみましょう。</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -194,60 +209,86 @@ export default function ConsultHistoryPage() {
                   onClick={() =>
                     setExpandedId(isExpanded ? null : log.id)
                   }
-                  className="w-full flex items-center gap-3 py-3 px-0 text-left group cursor-pointer"
+                  className="w-full py-3 px-0 text-left group cursor-pointer"
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => e.key === 'Enter' && setExpandedId(isExpanded ? null : log.id)}
                 >
-                  {/* 展開矢印 */}
-                  <span
-                    className={`text-text-muted text-xs transition-transform duration-200 ${
-                      isExpanded ? "rotate-90" : ""
-                    }`}
-                  >
-                    ▸
-                  </span>
-
-                  {/* 人物名 */}
-                  <span className="text-text-primary text-sm shrink-0">
-                    {log.person?.nickname || "不明"}
-                  </span>
-
-                  {/* 相談タイプ */}
-                  <span
-                    className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] border ${
-                      log.consultType === "deep"
-                        ? "border-jade/30 text-jade"
-                        : "border-border-subtle text-text-secondary"
-                    }`}
-                  >
-                    {log.consultType === "deep" ? "Deep" : "Standard"}
-                  </span>
-
-                  {/* 相談内容プレビュー */}
-                  <span className="flex-1 text-text-muted text-xs truncate min-w-0">
-                    {log.context}
-                  </span>
-
-                  {/* 星評価 */}
-                  {log.outcomeRating && (
-                    <span className="text-gold text-[11px] shrink-0 hidden sm:inline">
-                      {"★".repeat(log.outcomeRating)}
+                  {/* デスクトップ: 1行表示 */}
+                  <div className="hidden sm:flex items-center gap-3">
+                    <span
+                      className={`text-text-muted text-xs transition-transform duration-200 ${
+                        isExpanded ? "rotate-90" : ""
+                      }`}
+                    >
+                      ▸
                     </span>
-                  )}
+                    <span className="text-text-primary text-sm shrink-0">
+                      {log.person?.nickname || "不明"}
+                    </span>
+                    <span
+                      className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] border ${
+                        log.consultType === "deep"
+                          ? "border-jade/30 text-jade"
+                          : "border-border-subtle text-text-secondary"
+                      }`}
+                    >
+                      {log.consultType === "deep" ? "詳細" : "標準"}
+                    </span>
+                    <span className="flex-1 text-text-muted text-xs truncate min-w-0">
+                      {log.context}
+                    </span>
+                    {log.outcomeRating && (
+                      <span className="text-gold text-[11px] shrink-0">
+                        {"★".repeat(log.outcomeRating)}
+                      </span>
+                    )}
+                    <span className="text-text-muted text-[11px] shrink-0">
+                      {formatDate(log.createdAt)}
+                    </span>
+                    <button
+                      onClick={(e) => handleDelete(e, log.id)}
+                      className="text-text-muted hover:text-danger transition-colors text-xs shrink-0 opacity-0 group-hover:opacity-100"
+                    >
+                      ✕
+                    </button>
+                  </div>
 
-                  {/* 日時 */}
-                  <span className="text-text-muted text-[11px] shrink-0 hidden sm:inline">
-                    {formatDate(log.createdAt)}
-                  </span>
-
-                  {/* 削除 */}
-                  <button
-                    onClick={(e) => handleDelete(e, log.id)}
-                    className="text-text-muted hover:text-danger transition-colors text-xs shrink-0 opacity-0 group-hover:opacity-100"
-                  >
-                    ✕
-                  </button>
+                  {/* モバイル: 2行表示 */}
+                  <div className="sm:hidden space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`text-text-muted text-xs transition-transform duration-200 ${
+                          isExpanded ? "rotate-90" : ""
+                        }`}
+                      >
+                        ▸
+                      </span>
+                      <span className="text-text-primary text-sm">
+                        {log.person?.nickname || "不明"}
+                      </span>
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[10px] border ${
+                          log.consultType === "deep"
+                            ? "border-jade/30 text-jade"
+                            : "border-border-subtle text-text-secondary"
+                        }`}
+                      >
+                        {log.consultType === "deep" ? "詳細" : "標準"}
+                      </span>
+                      {log.outcomeRating && (
+                        <span className="text-gold text-[11px]">
+                          {"★".repeat(log.outcomeRating)}
+                        </span>
+                      )}
+                      <span className="ml-auto text-text-muted text-[11px] shrink-0">
+                        {formatDate(log.createdAt)}
+                      </span>
+                    </div>
+                    <p className="text-text-muted text-xs truncate pl-5">
+                      {log.context}
+                    </p>
+                  </div>
                 </div>
 
                 {/* 展開コンテンツ */}
@@ -263,10 +304,7 @@ export default function ConsultHistoryPage() {
                       </p>
                     </div>
 
-                    {/* モバイル日時 */}
-                    <p className="text-[11px] text-text-muted mb-3 sm:hidden">
-                      {formatDate(log.createdAt)}
-                    </p>
+                    {/* モバイル: 日時は既にヘッダーに表示 */}
 
                     {/* 結果 */}
                     <div className="relative">

@@ -71,10 +71,16 @@ export async function PATCH(
       });
     }
     if (observations?.add?.length) {
+      const addItems = observations.add as Array<string | { content: string; category?: string }>;
       await prisma.observation.createMany({
-        data: (observations.add as string[])
-          .filter((c: string) => c.trim())
-          .map((content: string) => ({ content: content.trim(), personId: id })),
+        data: addItems
+          .map((item) => {
+            if (typeof item === "string") {
+              return { content: item.trim(), category: "other", personId: id };
+            }
+            return { content: item.content.trim(), category: item.category || "other", personId: id };
+          })
+          .filter((d) => d.content),
       });
     }
 

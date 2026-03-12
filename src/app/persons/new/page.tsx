@@ -98,7 +98,7 @@ export default function NewPersonPage() {
   return (
     <div className="max-w-xl mx-auto">
       <h1 className="font-display text-[32px] font-light text-gold tracking-wide mb-8">
-        Register
+        人物を登録
       </h1>
 
       <form onSubmit={handleSubmit} className="space-y-0">
