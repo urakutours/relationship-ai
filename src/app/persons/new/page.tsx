@@ -6,9 +6,14 @@ import {
   GENDER_OPTIONS,
   BLOOD_TYPE_OPTIONS,
   BIRTH_ORDER_OPTIONS,
+  CONTACT_FREQUENCY_OPTIONS,
+  MBTI_TYPES,
+  MARITAL_STATUS_OPTIONS,
+  HAS_CHILDREN_OPTIONS,
 } from "@/lib/types";
 import { RELATIONSHIP_CATEGORIES } from "@/lib/relationship-types";
 import { BirthDateSelect } from "@/components/birth-date-select";
+import { CountrySelect } from "@/components/country-select";
 
 export default function NewPersonPage() {
   const router = useRouter();
@@ -26,7 +31,16 @@ export default function NewPersonPage() {
   const [bloodType, setBloodType] = useState("");
   const [birthCountry, setBirthCountry] = useState("");
   const [birthOrder, setBirthOrder] = useState("");
+  const [honorific, setHonorific] = useState("");
   const [personalContext, setPersonalContext] = useState("");
+  const [acquaintanceYear, setAcquaintanceYear] = useState("");
+  const [acquaintanceMonth, setAcquaintanceMonth] = useState("");
+  const [acquaintanceDay, setAcquaintanceDay] = useState("");
+  const [intimacyScore, setIntimacyScore] = useState(5);
+  const [contactFrequency, setContactFrequency] = useState("");
+  const [mbti, setMbti] = useState("");
+  const [maritalStatus, setMaritalStatus] = useState("");
+  const [hasChildren, setHasChildren] = useState("");
   const [observations, setObservations] = useState<string[]>([""]);
 
   // 観察メモの追加
@@ -54,6 +68,17 @@ export default function NewPersonPage() {
     const y = birthYear.padStart(4, "0");
     const m = birthMonth.padStart(2, "0");
     const d = birthDay.padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
+  // 知り合った日（年だけ、年月、年月日に対応）
+  const buildAcquaintanceDate = (): string | null => {
+    if (!acquaintanceYear) return null;
+    const y = acquaintanceYear.padStart(4, "0");
+    if (!acquaintanceMonth) return y;
+    const m = acquaintanceMonth.padStart(2, "0");
+    if (!acquaintanceDay) return `${y}-${m}`;
+    const d = acquaintanceDay.padStart(2, "0");
     return `${y}-${m}-${d}`;
   };
 
@@ -85,7 +110,14 @@ export default function NewPersonPage() {
           bloodType: bloodType || null,
           birthCountry: birthCountry || null,
           birthOrder: birthOrder || null,
+          honorific: honorific.trim() || null,
           personalContext: personalContext.trim() || null,
+          acquaintanceDate: buildAcquaintanceDate(),
+          intimacyScore: intimacyScore,
+          contactFrequency: contactFrequency || null,
+          mbti: mbti || null,
+          maritalStatus: maritalStatus || null,
+          hasChildren: hasChildren || null,
           observations: observations.filter((o) => o.trim()),
         }),
       });
@@ -251,18 +283,26 @@ export default function NewPersonPage() {
           </select>
         </div>
 
+        {/* 敬称（任意） */}
+        <div className="py-4">
+          <label className="block text-xs text-text-secondary mb-2 tracking-wide">
+            敬称 <span className="text-text-muted">(任意・空欄で「さん」)</span>
+          </label>
+          <input
+            type="text"
+            value={honorific}
+            onChange={(e) => setHonorific(e.target.value)}
+            placeholder="さん・ちゃん・くん・様・先生など"
+            className="input-underline"
+          />
+        </div>
+
         {/* 出身国（任意） */}
         <div className="py-4">
           <label className="block text-xs text-text-secondary mb-2 tracking-wide">
             出身国 <span className="text-text-muted">(任意)</span>
           </label>
-          <input
-            type="text"
-            value={birthCountry}
-            onChange={(e) => setBirthCountry(e.target.value)}
-            placeholder="例: 日本"
-            className="input-underline"
-          />
+          <CountrySelect value={birthCountry} onChange={setBirthCountry} />
         </div>
 
         {/* 出生順位（任意） */}
@@ -282,6 +322,164 @@ export default function NewPersonPage() {
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="h-4" />
+
+        {/* 知り合った時期（任意） */}
+        <div className="py-4">
+          <label className="block text-xs text-text-secondary mb-2 tracking-wide">
+            知り合った時期 <span className="text-text-muted">(任意・年だけでもOK)</span>
+          </label>
+          <div className="flex gap-3 items-end">
+            <div className="flex-1">
+              <select value={acquaintanceYear} onChange={(e) => setAcquaintanceYear(e.target.value)} className="input-underline">
+                <option value="">年</option>
+                {Array.from({ length: new Date().getFullYear() - 1950 + 1 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                  <option key={y} value={String(y)}>{y}年</option>
+                ))}
+              </select>
+            </div>
+            <div className="w-24">
+              <select value={acquaintanceMonth} onChange={(e) => setAcquaintanceMonth(e.target.value)} className="input-underline">
+                <option value="">月</option>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                  <option key={m} value={String(m)}>{m}月</option>
+                ))}
+              </select>
+            </div>
+            <div className="w-24">
+              <select value={acquaintanceDay} onChange={(e) => setAcquaintanceDay(e.target.value)} className="input-underline">
+                <option value="">日</option>
+                {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                  <option key={d} value={String(d)}>{d}日</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* 親密度（任意） */}
+        <div className="py-4">
+          <label className="block text-xs text-text-secondary mb-2 tracking-wide">
+            親密度
+          </label>
+          <div className="flex items-center gap-3">
+            <span className="text-[10px] text-text-muted shrink-0">他人</span>
+            <input
+              type="range"
+              min={0}
+              max={10}
+              value={intimacyScore}
+              onChange={(e) => setIntimacyScore(parseInt(e.target.value))}
+              className="flex-1 accent-gold"
+            />
+            <span className="text-[10px] text-text-muted shrink-0">親密</span>
+            <span className="text-sm text-gold font-medium w-6 text-center">{intimacyScore}</span>
+          </div>
+        </div>
+
+        {/* 接触頻度（任意） */}
+        <div className="py-4">
+          <label className="block text-xs text-text-secondary mb-3 tracking-wide">
+            接触頻度 <span className="text-text-muted">(任意)</span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {CONTACT_FREQUENCY_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setContactFrequency(contactFrequency === opt.value ? "" : opt.value)}
+                className={`px-3 py-1.5 rounded-lg border text-sm transition-all duration-200 ${
+                  contactFrequency === opt.value
+                    ? "border-gold bg-gold/10 text-gold"
+                    : "border-border-subtle text-text-secondary hover:border-text-muted"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* MBTI（任意） */}
+        <div className="py-4">
+          <label className="block text-xs text-text-secondary mb-3 tracking-wide">
+            MBTI <span className="text-text-muted">(任意)</span>
+          </label>
+          <div className="grid grid-cols-4 gap-1.5">
+            {MBTI_TYPES.map((type) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => setMbti(mbti === type ? "" : type)}
+                className={`px-2 py-1.5 rounded border text-xs font-mono transition-all duration-200 ${
+                  mbti === type
+                    ? "border-gold bg-gold/10 text-gold"
+                    : "border-border-subtle text-text-secondary hover:border-text-muted"
+                }`}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={() => setMbti(mbti === "unknown" ? "" : "unknown")}
+            className={`mt-2 px-3 py-1.5 rounded border text-xs transition-all duration-200 ${
+              mbti === "unknown"
+                ? "border-gold bg-gold/10 text-gold"
+                : "border-border-subtle text-text-secondary hover:border-text-muted"
+            }`}
+          >
+            わからない
+          </button>
+        </div>
+
+        {/* 婚姻状況（任意） */}
+        <div className="py-4">
+          <label className="block text-xs text-text-secondary mb-3 tracking-wide">
+            婚姻状況 <span className="text-text-muted">(任意)</span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {MARITAL_STATUS_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setMaritalStatus(maritalStatus === opt.value ? "" : opt.value)}
+                className={`px-3 py-1.5 rounded-lg border text-sm transition-all duration-200 ${
+                  maritalStatus === opt.value
+                    ? "border-gold bg-gold/10 text-gold"
+                    : "border-border-subtle text-text-secondary hover:border-text-muted"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 子供の有無（任意） */}
+        <div className="py-4">
+          <label className="block text-xs text-text-secondary mb-3 tracking-wide">
+            子供の有無 <span className="text-text-muted">(任意)</span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {HAS_CHILDREN_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setHasChildren(hasChildren === opt.value ? "" : opt.value)}
+                className={`px-3 py-1.5 rounded-lg border text-sm transition-all duration-200 ${
+                  hasChildren === opt.value
+                    ? "border-gold bg-gold/10 text-gold"
+                    : "border-border-subtle text-text-secondary hover:border-text-muted"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="h-4" />

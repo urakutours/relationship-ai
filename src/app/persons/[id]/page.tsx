@@ -10,9 +10,14 @@ import {
   BLOOD_TYPE_OPTIONS,
   BIRTH_ORDER_OPTIONS,
   OBSERVATION_CATEGORIES,
+  CONTACT_FREQUENCY_OPTIONS,
+  MBTI_TYPES,
+  MARITAL_STATUS_OPTIONS,
+  HAS_CHILDREN_OPTIONS,
 } from "@/lib/types";
 import { RELATIONSHIP_CATEGORIES, formatRelationshipShort, formatRelationshipLabel } from "@/lib/relationship-types";
 import { BirthDateSelect } from "@/components/birth-date-select";
+import { CountrySelect } from "@/components/country-select";
 
 /** 相性スコアの色を返す */
 function getScoreColor(score: number): string {
@@ -96,7 +101,19 @@ export default function PersonDetailPage() {
   const [editBloodType, setEditBloodType] = useState("");
   const [editBirthCountry, setEditBirthCountry] = useState("");
   const [editBirthOrder, setEditBirthOrder] = useState("");
+  const [editHonorific, setEditHonorific] = useState("");
   const [editPersonalContext, setEditPersonalContext] = useState("");
+  const [editAcquaintanceYear, setEditAcquaintanceYear] = useState("");
+  const [editAcquaintanceMonth, setEditAcquaintanceMonth] = useState("");
+  const [editAcquaintanceDay, setEditAcquaintanceDay] = useState("");
+  const [editIntimacyScore, setEditIntimacyScore] = useState(5);
+  const [editContactFrequency, setEditContactFrequency] = useState("");
+  const [editMbti, setEditMbti] = useState("");
+  const [editMaritalStatus, setEditMaritalStatus] = useState("");
+  const [editHasChildren, setEditHasChildren] = useState("");
+
+  // インライン編集中のフィールド名
+  const [inlineField, setInlineField] = useState<string | null>(null);
   const [editObservations, setEditObservations] = useState<ObservationData[]>([]);
   const [newObservations, setNewObservations] = useState<string[]>([]);
   const [deleteObservationIds, setDeleteObservationIds] = useState<string[]>([]);
@@ -218,7 +235,19 @@ export default function PersonDetailPage() {
     setEditBloodType(person.bloodType || "");
     setEditBirthCountry(person.birthCountry || "");
     setEditBirthOrder(person.birthOrder || "");
+    setEditHonorific(person.honorific || "");
     setEditPersonalContext(person.personalContext || "");
+    // 知り合った日のパース
+    const aq = person.acquaintanceDate || "";
+    const aqParts = aq.split("-");
+    setEditAcquaintanceYear(aqParts[0] || "");
+    setEditAcquaintanceMonth(aqParts[1] ? String(parseInt(aqParts[1])) : "");
+    setEditAcquaintanceDay(aqParts[2] ? String(parseInt(aqParts[2])) : "");
+    setEditIntimacyScore(person.intimacyScore ?? 5);
+    setEditContactFrequency(person.contactFrequency || "");
+    setEditMbti(person.mbti || "");
+    setEditMaritalStatus(person.maritalStatus || "");
+    setEditHasChildren(person.hasChildren || "");
     setEditObservations([...person.observations]);
     setNewObservations([]);
     setDeleteObservationIds([]);
@@ -227,19 +256,33 @@ export default function PersonDetailPage() {
 
   const cancelEdit = () => {
     setEditMode(false);
+    setInlineField(null);
   };
 
-  // 編集保存
-  const saveEdit = async () => {
-    if (!person || !editNickname.trim()) return;
-    setEditSaving(true);
+  // フィールドインライン編集開始ヘルパー
+  const startFieldEdit = (field: string) => {
+    if (!person) return;
+    // まず現在の値をedit stateにセット
+    enterEditMode();
+    setInlineField(field);
+  };
 
-    // birthDate変更を判定
+  // インライン保存（単一フィールド）
+  const saveInlineField = async () => {
+    if (!person) return;
+    setEditSaving(true);
+    // acquaintanceDate構築
+    const aqDate = editAcquaintanceYear
+      ? (editAcquaintanceMonth
+        ? (editAcquaintanceDay
+          ? `${editAcquaintanceYear.padStart(4, "0")}-${editAcquaintanceMonth.padStart(2, "0")}-${editAcquaintanceDay.padStart(2, "0")}`
+          : `${editAcquaintanceYear.padStart(4, "0")}-${editAcquaintanceMonth.padStart(2, "0")}`)
+        : editAcquaintanceYear.padStart(4, "0"))
+      : null;
+
     const newBirthDate = (editBirthYear && editBirthMonth && editBirthDay)
       ? `${editBirthYear.padStart(4, "0")}-${editBirthMonth.padStart(2, "0")}-${editBirthDay.padStart(2, "0")}`
       : null;
-    const birthDateChanged = newBirthDate !== person.birthDate;
-    const observationsChanged = deleteObservationIds.length > 0 || newObservations.some(o => o.trim());
 
     try {
       const res = await fetch(`/api/persons/${id}`, {
@@ -257,7 +300,78 @@ export default function PersonDetailPage() {
           bloodType: editBloodType || null,
           birthCountry: editBirthCountry || null,
           birthOrder: editBirthOrder || null,
+          honorific: editHonorific.trim() || null,
           personalContext: editPersonalContext.trim() || null,
+          acquaintanceDate: aqDate,
+          intimacyScore: editIntimacyScore,
+          contactFrequency: editContactFrequency || null,
+          mbti: editMbti || null,
+          maritalStatus: editMaritalStatus || null,
+          hasChildren: editHasChildren || null,
+        }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setPerson(updated);
+        setInlineField(null);
+        setEditMode(false);
+      }
+    } catch (error) {
+      console.error("保存エラー:", error);
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const cancelInlineEdit = () => {
+    setInlineField(null);
+    setEditMode(false);
+  };
+
+  // 編集保存
+  const saveEdit = async () => {
+    if (!person || !editNickname.trim()) return;
+    setEditSaving(true);
+
+    // birthDate変更を判定
+    const newBirthDate = (editBirthYear && editBirthMonth && editBirthDay)
+      ? `${editBirthYear.padStart(4, "0")}-${editBirthMonth.padStart(2, "0")}-${editBirthDay.padStart(2, "0")}`
+      : null;
+    const birthDateChanged = newBirthDate !== person.birthDate;
+    const observationsChanged = deleteObservationIds.length > 0 || newObservations.some(o => o.trim());
+    // acquaintanceDate構築
+    const aqDate = editAcquaintanceYear
+      ? (editAcquaintanceMonth
+        ? (editAcquaintanceDay
+          ? `${editAcquaintanceYear.padStart(4, "0")}-${editAcquaintanceMonth.padStart(2, "0")}-${editAcquaintanceDay.padStart(2, "0")}`
+          : `${editAcquaintanceYear.padStart(4, "0")}-${editAcquaintanceMonth.padStart(2, "0")}`)
+        : editAcquaintanceYear.padStart(4, "0"))
+      : null;
+
+    try {
+      const res = await fetch(`/api/persons/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nickname: editNickname.trim(),
+          relationship: formatRelationshipShort(editRelCategory, editRelSubtype) || editRelationship,
+          relationshipCategory: editRelCategory || null,
+          relationshipSubtype: editRelSubtype || null,
+          relationshipDetail: editRelDetail.trim() || null,
+          birthDate: newBirthDate,
+          birthYear: editBirthYear || null,
+          gender: editGender || null,
+          bloodType: editBloodType || null,
+          birthCountry: editBirthCountry || null,
+          birthOrder: editBirthOrder || null,
+          honorific: editHonorific.trim() || null,
+          personalContext: editPersonalContext.trim() || null,
+          acquaintanceDate: aqDate,
+          intimacyScore: editIntimacyScore,
+          contactFrequency: editContactFrequency || null,
+          mbti: editMbti || null,
+          maritalStatus: editMaritalStatus || null,
+          hasChildren: editHasChildren || null,
           observations: {
             add: newObservations.filter(o => o.trim()),
             delete: deleteObservationIds,
@@ -298,13 +412,13 @@ export default function PersonDetailPage() {
   };
 
   // インライン編集開始
-  const startInlineEdit = (obs: ObservationData) => {
+  const startMemoInlineEdit = (obs: ObservationData) => {
     setInlineEditId(obs.id);
     setInlineEditContent(obs.content);
     setInlineEditCategory((obs.category || "other") as ObservationCategory);
   };
-  const cancelInlineEdit = () => { setInlineEditId(null); };
-  const saveInlineEdit = async () => {
+  const cancelMemoInlineEdit = () => { setInlineEditId(null); };
+  const saveMemoInlineEdit = async () => {
     if (!inlineEditId || !inlineEditContent.trim()) return;
     setInlineEditSaving(true);
     try {
@@ -608,6 +722,48 @@ export default function PersonDetailPage() {
   const score = person.compatibilityScore;
   const placeholder = PLACEHOLDERS[person.relationship] || DEFAULT_PLACEHOLDER;
 
+  // ヘルパー: 接触頻度ラベル
+  const contactFreqLabel = CONTACT_FREQUENCY_OPTIONS.find(o => o.value === person.contactFrequency)?.label;
+  // ヘルパー: 婚姻状況ラベル
+  const maritalLabel = MARITAL_STATUS_OPTIONS.find(o => o.value === person.maritalStatus)?.label;
+  // ヘルパー: 子供の有無ラベル
+  const childrenLabel = HAS_CHILDREN_OPTIONS.find(o => o.value === person.hasChildren)?.label;
+  // ヘルパー: 知り合った日の表示
+  const formatAcquaintanceDate = (ad: string | null) => {
+    if (!ad) return null;
+    const p = ad.split("-");
+    if (p.length === 1) return `${p[0]}年`;
+    if (p.length === 2) return `${p[0]}年${parseInt(p[1])}月`;
+    return `${p[0]}年${parseInt(p[1])}月${parseInt(p[2])}日`;
+  };
+  // インライン編集 保存/キャンセルボタン
+  const InlineButtons = () => (
+    <div className="flex gap-2 mt-2">
+      <button onClick={saveInlineField} disabled={editSaving}
+        className="text-xs text-jade hover:text-gold transition-colors px-2 py-1 border border-jade/30 rounded disabled:opacity-40">
+        {editSaving ? "保存中..." : "✓ 保存"}
+      </button>
+      <button onClick={cancelInlineEdit}
+        className="text-xs text-text-muted hover:text-text-secondary transition-colors px-2 py-1">
+        ✕ キャンセル
+      </button>
+    </div>
+  );
+  // クリッカブル表示行
+  const FieldRow = ({ label, value, field }: { label: string; value: string | null | undefined; field: string }) => (
+    value ? (
+      <button onClick={() => startFieldEdit(field)}
+        className="flex items-start gap-2 text-sm group w-full text-left hover:bg-gold/5 rounded px-1 -mx-1 py-0.5 transition-colors">
+        <span className="text-text-secondary shrink-0">{label}:</span>
+        <span className="text-text-primary">{value}</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
+          className="shrink-0 mt-0.5 text-text-muted opacity-0 group-hover:opacity-100 transition-opacity">
+          <path d="M12 20h9" /><path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z" />
+        </svg>
+      </button>
+    ) : null
+  );
+
   return (
     <div className="space-y-6">
       <Link href="/persons" className="inline-flex items-center gap-1 text-text-muted text-sm hover:text-gold transition-colors">← 一覧に戻る</Link>
@@ -714,11 +870,17 @@ export default function PersonDetailPage() {
             </select>
           </div>
 
+          {/* 敬称 */}
+          <div>
+            <label className="block text-xs text-text-secondary mb-1">敬称</label>
+            <input type="text" value={editHonorific} onChange={(e) => setEditHonorific(e.target.value)}
+              placeholder="さん・ちゃん・くん・様・先生など" className="input-underline" />
+          </div>
+
           {/* 出身国 */}
           <div>
             <label className="block text-xs text-text-secondary mb-1">出身国</label>
-            <input type="text" value={editBirthCountry} onChange={(e) => setEditBirthCountry(e.target.value)}
-              placeholder="例: 日本" className="input-underline" />
+            <CountrySelect value={editBirthCountry} onChange={setEditBirthCountry} />
           </div>
 
           {/* 出生順位 */}
@@ -728,6 +890,107 @@ export default function PersonDetailPage() {
               <option value="">未選択</option>
               {BIRTH_ORDER_OPTIONS.map((bo) => (<option key={bo} value={bo}>{bo}</option>))}
             </select>
+          </div>
+
+          <div className="h-2" />
+
+          {/* 知り合った時期 */}
+          <div>
+            <label className="block text-xs text-text-secondary mb-1">知り合った時期</label>
+            <div className="flex gap-3 items-end">
+              <div className="flex-1">
+                <select value={editAcquaintanceYear} onChange={(e) => setEditAcquaintanceYear(e.target.value)} className="input-underline">
+                  <option value="">年</option>
+                  {Array.from({ length: new Date().getFullYear() - 1950 + 1 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                    <option key={y} value={String(y)}>{y}年</option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-24">
+                <select value={editAcquaintanceMonth} onChange={(e) => setEditAcquaintanceMonth(e.target.value)} className="input-underline">
+                  <option value="">月</option>
+                  {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                    <option key={m} value={String(m)}>{m}月</option>
+                  ))}
+                </select>
+              </div>
+              <div className="w-24">
+                <select value={editAcquaintanceDay} onChange={(e) => setEditAcquaintanceDay(e.target.value)} className="input-underline">
+                  <option value="">日</option>
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                    <option key={d} value={String(d)}>{d}日</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* 親密度 */}
+          <div>
+            <label className="block text-xs text-text-secondary mb-1">親密度</label>
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] text-text-muted shrink-0">他人</span>
+              <input type="range" min={0} max={10} value={editIntimacyScore}
+                onChange={(e) => setEditIntimacyScore(parseInt(e.target.value))} className="flex-1 accent-gold" />
+              <span className="text-[10px] text-text-muted shrink-0">親密</span>
+              <span className="text-sm text-gold font-medium w-6 text-center">{editIntimacyScore}</span>
+            </div>
+          </div>
+
+          {/* 接触頻度 */}
+          <div>
+            <label className="block text-xs text-text-secondary mb-1">接触頻度</label>
+            <div className="flex flex-wrap gap-2">
+              {CONTACT_FREQUENCY_OPTIONS.map((opt) => (
+                <button key={opt.value} type="button" onClick={() => setEditContactFrequency(editContactFrequency === opt.value ? "" : opt.value)}
+                  className={`px-3 py-1.5 rounded-lg border text-sm transition-all duration-200 ${
+                    editContactFrequency === opt.value ? "border-gold bg-gold/10 text-gold" : "border-border-subtle text-text-secondary hover:border-text-muted"
+                  }`}>{opt.label}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* MBTI */}
+          <div>
+            <label className="block text-xs text-text-secondary mb-1">MBTI</label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {MBTI_TYPES.map((type) => (
+                <button key={type} type="button" onClick={() => setEditMbti(editMbti === type ? "" : type)}
+                  className={`px-2 py-1.5 rounded border text-xs font-mono transition-all ${
+                    editMbti === type ? "border-gold bg-gold/10 text-gold" : "border-border-subtle text-text-secondary hover:border-text-muted"
+                  }`}>{type}</button>
+              ))}
+            </div>
+            <button type="button" onClick={() => setEditMbti(editMbti === "unknown" ? "" : "unknown")}
+              className={`mt-2 px-3 py-1.5 rounded border text-xs transition-all ${
+                editMbti === "unknown" ? "border-gold bg-gold/10 text-gold" : "border-border-subtle text-text-secondary"
+              }`}>わからない</button>
+          </div>
+
+          {/* 婚姻状況 */}
+          <div>
+            <label className="block text-xs text-text-secondary mb-1">婚姻状況</label>
+            <div className="flex flex-wrap gap-2">
+              {MARITAL_STATUS_OPTIONS.map((opt) => (
+                <button key={opt.value} type="button" onClick={() => setEditMaritalStatus(editMaritalStatus === opt.value ? "" : opt.value)}
+                  className={`px-3 py-1.5 rounded-lg border text-sm transition-all ${
+                    editMaritalStatus === opt.value ? "border-gold bg-gold/10 text-gold" : "border-border-subtle text-text-secondary hover:border-text-muted"
+                  }`}>{opt.label}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* 子供の有無 */}
+          <div>
+            <label className="block text-xs text-text-secondary mb-1">子供の有無</label>
+            <div className="flex flex-wrap gap-2">
+              {HAS_CHILDREN_OPTIONS.map((opt) => (
+                <button key={opt.value} type="button" onClick={() => setEditHasChildren(editHasChildren === opt.value ? "" : opt.value)}
+                  className={`px-3 py-1.5 rounded-lg border text-sm transition-all ${
+                    editHasChildren === opt.value ? "border-gold bg-gold/10 text-gold" : "border-border-subtle text-text-secondary hover:border-text-muted"
+                  }`}>{opt.label}</button>
+              ))}
+            </div>
           </div>
 
           <div className="h-2" />
@@ -785,21 +1048,293 @@ export default function PersonDetailPage() {
         </div>
       ) : (
         <div className="card">
+          {/* ヘッダー: ニックネーム + 関係性 */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <h1 className="font-display text-[28px] md:text-[32px] font-light text-gold tracking-wide">{person.nickname}</h1>
-              <span className="inline-block self-start px-2 py-0.5 border border-border-subtle rounded-[4px] text-[12px] text-text-secondary">{formatRelationshipLabel(person.relationshipCategory, person.relationshipSubtype, person.relationshipDetail) || person.relationship}</span>
+              {inlineField === "nickname" ? (
+                <div>
+                  <input type="text" value={editNickname} onChange={(e) => setEditNickname(e.target.value)}
+                    className="input-underline text-lg" autoFocus />
+                  <InlineButtons />
+                </div>
+              ) : (
+                <button onClick={() => startFieldEdit("nickname")} className="group flex items-center gap-2">
+                  <h1 className="font-display text-[28px] md:text-[32px] font-light text-gold tracking-wide">{person.nickname}</h1>
+                  <span className="text-text-muted text-xs opacity-0 group-hover:opacity-100 transition-opacity">✎</span>
+                </button>
+              )}
+              {inlineField === "relationship" ? (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                    {RELATIONSHIP_CATEGORIES.map((cat) => (
+                      <button key={cat.value} type="button" onClick={() => { setEditRelCategory(cat.value); setEditRelSubtype(""); }}
+                        className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-xs transition-all ${
+                          editRelCategory === cat.value ? "border-gold bg-gold/10 text-gold" : "border-border-subtle text-text-secondary hover:border-text-muted"
+                        }`}>
+                        <span className="text-sm">{cat.icon}</span><span className="truncate">{cat.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {editRelCategory && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                      {RELATIONSHIP_CATEGORIES.find(c => c.value === editRelCategory)?.subtypes.map((sub) => (
+                        <button key={sub.value} type="button" onClick={() => setEditRelSubtype(sub.value)}
+                          className={`px-2 py-1.5 rounded-lg border text-xs transition-all ${
+                            editRelSubtype === sub.value ? "border-gold bg-gold/10 text-gold" : "border-border-subtle text-text-secondary hover:border-text-muted"
+                          }`}>{sub.label}</button>
+                      ))}
+                    </div>
+                  )}
+                  {editRelSubtype && (
+                    <input type="text" value={editRelDetail} onChange={(e) => setEditRelDetail(e.target.value)}
+                      placeholder="補足（任意）" className="input-underline text-xs" />
+                  )}
+                  <InlineButtons />
+                </div>
+              ) : (
+                <button onClick={() => startFieldEdit("relationship")} className="group inline-flex items-center gap-1">
+                  <span className="inline-block self-start px-2 py-0.5 border border-border-subtle rounded-[4px] text-[12px] text-text-secondary">
+                    {formatRelationshipLabel(person.relationshipCategory, person.relationshipSubtype, person.relationshipDetail) || person.relationship}
+                  </span>
+                  <span className="text-text-muted text-xs opacity-0 group-hover:opacity-100 transition-opacity">✎</span>
+                </button>
+              )}
             </div>
             <button onClick={enterEditMode}
               className="self-start text-[12px] text-text-secondary hover:text-gold border border-border-subtle hover:border-gold-dim rounded-[4px] px-3 py-1 transition-colors">
-              編集
+              全体編集
             </button>
           </div>
-          <div className="mt-3 space-y-1 text-sm text-text-secondary">
-            {person.birthDate && <p>生年月日: {formatBirthDate(person.birthDate)}</p>}
-            {person.gender && <p>性別: {person.gender}</p>}
-            {person.bloodType && <p>血液型: {person.bloodType}型</p>}
-            {person.personalContext && <p>背景: <span className="text-text-primary">{person.personalContext}</span></p>}
+
+          {/* プロフィール情報（インライン編集対応） */}
+          <div className="mt-3 space-y-0.5">
+            {/* 敬称 */}
+            {inlineField === "honorific" ? (
+              <div className="py-1">
+                <label className="block text-xs text-text-secondary mb-1">敬称</label>
+                <input type="text" value={editHonorific} onChange={(e) => setEditHonorific(e.target.value)}
+                  placeholder="さん・ちゃん・くん・様・先生など" className="input-underline text-sm" autoFocus />
+                <InlineButtons />
+              </div>
+            ) : (
+              <FieldRow label="敬称" value={person.honorific || "さん（デフォルト）"} field="honorific" />
+            )}
+
+            {/* 生年月日 */}
+            {inlineField === "birthDate" ? (
+              <div className="py-1">
+                <label className="block text-xs text-text-secondary mb-1">生年月日</label>
+                <BirthDateSelect birthYear={editBirthYear} birthMonth={editBirthMonth} birthDay={editBirthDay}
+                  onYearChange={setEditBirthYear} onMonthChange={setEditBirthMonth} onDayChange={setEditBirthDay} />
+                <InlineButtons />
+              </div>
+            ) : (
+              <FieldRow label="生年月日" value={formatBirthDate(person.birthDate)} field="birthDate" />
+            )}
+
+            {/* 性別 */}
+            {inlineField === "gender" ? (
+              <div className="py-1">
+                <label className="block text-xs text-text-secondary mb-1">性別</label>
+                <select value={editGender} onChange={(e) => setEditGender(e.target.value)} className="input-underline text-sm" autoFocus>
+                  <option value="">未選択</option>
+                  {GENDER_OPTIONS.map((g) => (<option key={g} value={g}>{g}</option>))}
+                </select>
+                <InlineButtons />
+              </div>
+            ) : (
+              <FieldRow label="性別" value={person.gender} field="gender" />
+            )}
+
+            {/* 血液型 */}
+            {inlineField === "bloodType" ? (
+              <div className="py-1">
+                <label className="block text-xs text-text-secondary mb-1">血液型</label>
+                <select value={editBloodType} onChange={(e) => setEditBloodType(e.target.value)} className="input-underline text-sm" autoFocus>
+                  <option value="">未選択</option>
+                  {BLOOD_TYPE_OPTIONS.map((bt) => (<option key={bt} value={bt}>{bt}型</option>))}
+                </select>
+                <InlineButtons />
+              </div>
+            ) : (
+              <FieldRow label="血液型" value={person.bloodType ? `${person.bloodType}型` : null} field="bloodType" />
+            )}
+
+            {/* 出身国 */}
+            {inlineField === "birthCountry" ? (
+              <div className="py-1">
+                <label className="block text-xs text-text-secondary mb-1">出身国</label>
+                <CountrySelect value={editBirthCountry} onChange={setEditBirthCountry} />
+                <InlineButtons />
+              </div>
+            ) : (
+              <FieldRow label="出身国" value={person.birthCountry} field="birthCountry" />
+            )}
+
+            {/* 出生順位 */}
+            {inlineField === "birthOrder" ? (
+              <div className="py-1">
+                <label className="block text-xs text-text-secondary mb-1">出生順位</label>
+                <select value={editBirthOrder} onChange={(e) => setEditBirthOrder(e.target.value)} className="input-underline text-sm" autoFocus>
+                  <option value="">未選択</option>
+                  {BIRTH_ORDER_OPTIONS.map((bo) => (<option key={bo} value={bo}>{bo}</option>))}
+                </select>
+                <InlineButtons />
+              </div>
+            ) : (
+              <FieldRow label="出生順位" value={person.birthOrder} field="birthOrder" />
+            )}
+
+            {/* 知り合った時期 */}
+            {inlineField === "acquaintanceDate" ? (
+              <div className="py-1">
+                <label className="block text-xs text-text-secondary mb-1">知り合った時期</label>
+                <div className="flex gap-2 items-end">
+                  <select value={editAcquaintanceYear} onChange={(e) => setEditAcquaintanceYear(e.target.value)} className="input-underline text-sm flex-1">
+                    <option value="">年</option>
+                    {Array.from({ length: new Date().getFullYear() - 1950 + 1 }, (_, i) => new Date().getFullYear() - i).map((y) => (
+                      <option key={y} value={String(y)}>{y}年</option>
+                    ))}
+                  </select>
+                  <select value={editAcquaintanceMonth} onChange={(e) => setEditAcquaintanceMonth(e.target.value)} className="input-underline text-sm w-20">
+                    <option value="">月</option>
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((m) => (
+                      <option key={m} value={String(m)}>{m}月</option>
+                    ))}
+                  </select>
+                  <select value={editAcquaintanceDay} onChange={(e) => setEditAcquaintanceDay(e.target.value)} className="input-underline text-sm w-20">
+                    <option value="">日</option>
+                    {Array.from({ length: 31 }, (_, i) => i + 1).map((d) => (
+                      <option key={d} value={String(d)}>{d}日</option>
+                    ))}
+                  </select>
+                </div>
+                <InlineButtons />
+              </div>
+            ) : (
+              <FieldRow label="知り合った時期" value={formatAcquaintanceDate(person.acquaintanceDate)} field="acquaintanceDate" />
+            )}
+
+            {/* 親密度 */}
+            {inlineField === "intimacyScore" ? (
+              <div className="py-1">
+                <label className="block text-xs text-text-secondary mb-1">親密度</label>
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] text-text-muted shrink-0">他人</span>
+                  <input type="range" min={0} max={10} value={editIntimacyScore}
+                    onChange={(e) => setEditIntimacyScore(parseInt(e.target.value))} className="flex-1 accent-gold" />
+                  <span className="text-[10px] text-text-muted shrink-0">親密</span>
+                  <span className="text-sm text-gold font-medium w-6 text-center">{editIntimacyScore}</span>
+                </div>
+                <InlineButtons />
+              </div>
+            ) : (
+              <FieldRow label="親密度" value={person.intimacyScore !== null ? `${person.intimacyScore}/10` : null} field="intimacyScore" />
+            )}
+
+            {/* 接触頻度 */}
+            {inlineField === "contactFrequency" ? (
+              <div className="py-1">
+                <label className="block text-xs text-text-secondary mb-1">接触頻度</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {CONTACT_FREQUENCY_OPTIONS.map((opt) => (
+                    <button key={opt.value} type="button" onClick={() => setEditContactFrequency(editContactFrequency === opt.value ? "" : opt.value)}
+                      className={`px-2 py-1 rounded-lg border text-xs transition-all ${
+                        editContactFrequency === opt.value ? "border-gold bg-gold/10 text-gold" : "border-border-subtle text-text-secondary hover:border-text-muted"
+                      }`}>{opt.label}</button>
+                  ))}
+                </div>
+                <InlineButtons />
+              </div>
+            ) : (
+              <FieldRow label="接触頻度" value={contactFreqLabel} field="contactFrequency" />
+            )}
+
+            {/* MBTI */}
+            {inlineField === "mbti" ? (
+              <div className="py-1">
+                <label className="block text-xs text-text-secondary mb-1">MBTI</label>
+                <div className="grid grid-cols-4 gap-1">
+                  {MBTI_TYPES.map((type) => (
+                    <button key={type} type="button" onClick={() => setEditMbti(editMbti === type ? "" : type)}
+                      className={`px-1.5 py-1 rounded border text-[11px] font-mono transition-all ${
+                        editMbti === type ? "border-gold bg-gold/10 text-gold" : "border-border-subtle text-text-secondary hover:border-text-muted"
+                      }`}>{type}</button>
+                  ))}
+                </div>
+                <button type="button" onClick={() => setEditMbti(editMbti === "unknown" ? "" : "unknown")}
+                  className={`mt-1 px-2 py-1 rounded border text-[11px] transition-all ${
+                    editMbti === "unknown" ? "border-gold bg-gold/10 text-gold" : "border-border-subtle text-text-secondary"
+                  }`}>わからない</button>
+                <InlineButtons />
+              </div>
+            ) : (
+              <FieldRow label="MBTI" value={person.mbti === "unknown" ? "不明" : person.mbti} field="mbti" />
+            )}
+
+            {/* 婚姻状況 */}
+            {inlineField === "maritalStatus" ? (
+              <div className="py-1">
+                <label className="block text-xs text-text-secondary mb-1">婚姻状況</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {MARITAL_STATUS_OPTIONS.map((opt) => (
+                    <button key={opt.value} type="button" onClick={() => setEditMaritalStatus(editMaritalStatus === opt.value ? "" : opt.value)}
+                      className={`px-2 py-1 rounded-lg border text-xs transition-all ${
+                        editMaritalStatus === opt.value ? "border-gold bg-gold/10 text-gold" : "border-border-subtle text-text-secondary hover:border-text-muted"
+                      }`}>{opt.label}</button>
+                  ))}
+                </div>
+                <InlineButtons />
+              </div>
+            ) : (
+              <FieldRow label="婚姻状況" value={maritalLabel} field="maritalStatus" />
+            )}
+
+            {/* 子供の有無 */}
+            {inlineField === "hasChildren" ? (
+              <div className="py-1">
+                <label className="block text-xs text-text-secondary mb-1">子供の有無</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {HAS_CHILDREN_OPTIONS.map((opt) => (
+                    <button key={opt.value} type="button" onClick={() => setEditHasChildren(editHasChildren === opt.value ? "" : opt.value)}
+                      className={`px-2 py-1 rounded-lg border text-xs transition-all ${
+                        editHasChildren === opt.value ? "border-gold bg-gold/10 text-gold" : "border-border-subtle text-text-secondary hover:border-text-muted"
+                      }`}>{opt.label}</button>
+                  ))}
+                </div>
+                <InlineButtons />
+              </div>
+            ) : (
+              <FieldRow label="子供" value={childrenLabel} field="hasChildren" />
+            )}
+
+            {/* 生活背景 */}
+            {inlineField === "personalContext" ? (
+              <div className="py-1">
+                <label className="block text-xs text-text-secondary mb-1">生活背景・家族構成</label>
+                <textarea value={editPersonalContext} onChange={(e) => setEditPersonalContext(e.target.value)}
+                  rows={3} className="input-underline resize-none text-sm" autoFocus />
+                <InlineButtons />
+              </div>
+            ) : (
+              <FieldRow label="背景" value={person.personalContext} field="personalContext" />
+            )}
+
+            {/* 未入力フィールドの追加ボタン */}
+            {!inlineField && (
+              <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-border-subtle">
+                {!person.birthDate && <button onClick={() => startFieldEdit("birthDate")} className="text-[10px] text-text-muted hover:text-jade transition-colors px-1.5 py-0.5 border border-dashed border-border-subtle rounded">+ 生年月日</button>}
+                {!person.gender && <button onClick={() => startFieldEdit("gender")} className="text-[10px] text-text-muted hover:text-jade transition-colors px-1.5 py-0.5 border border-dashed border-border-subtle rounded">+ 性別</button>}
+                {!person.bloodType && <button onClick={() => startFieldEdit("bloodType")} className="text-[10px] text-text-muted hover:text-jade transition-colors px-1.5 py-0.5 border border-dashed border-border-subtle rounded">+ 血液型</button>}
+                {!person.birthCountry && <button onClick={() => startFieldEdit("birthCountry")} className="text-[10px] text-text-muted hover:text-jade transition-colors px-1.5 py-0.5 border border-dashed border-border-subtle rounded">+ 出身国</button>}
+                {!person.acquaintanceDate && <button onClick={() => startFieldEdit("acquaintanceDate")} className="text-[10px] text-text-muted hover:text-jade transition-colors px-1.5 py-0.5 border border-dashed border-border-subtle rounded">+ 知り合った時期</button>}
+                {!person.contactFrequency && <button onClick={() => startFieldEdit("contactFrequency")} className="text-[10px] text-text-muted hover:text-jade transition-colors px-1.5 py-0.5 border border-dashed border-border-subtle rounded">+ 接触頻度</button>}
+                {!person.mbti && <button onClick={() => startFieldEdit("mbti")} className="text-[10px] text-text-muted hover:text-jade transition-colors px-1.5 py-0.5 border border-dashed border-border-subtle rounded">+ MBTI</button>}
+                {!person.maritalStatus && <button onClick={() => startFieldEdit("maritalStatus")} className="text-[10px] text-text-muted hover:text-jade transition-colors px-1.5 py-0.5 border border-dashed border-border-subtle rounded">+ 婚姻状況</button>}
+                {!person.hasChildren && <button onClick={() => startFieldEdit("hasChildren")} className="text-[10px] text-text-muted hover:text-jade transition-colors px-1.5 py-0.5 border border-dashed border-border-subtle rounded">+ 子供の有無</button>}
+                {!person.personalContext && <button onClick={() => startFieldEdit("personalContext")} className="text-[10px] text-text-muted hover:text-jade transition-colors px-1.5 py-0.5 border border-dashed border-border-subtle rounded">+ 背景</button>}
+              </div>
+            )}
           </div>
 
           {/* 観察メモセクション */}
@@ -864,9 +1399,9 @@ export default function PersonDetailPage() {
                             ))}
                           </select>
                           <div className="ml-auto flex gap-2">
-                            <button onClick={cancelInlineEdit}
+                            <button onClick={cancelMemoInlineEdit}
                               className="text-xs text-text-muted hover:text-text-secondary transition-colors px-2 py-1">キャンセル</button>
-                            <button onClick={saveInlineEdit} disabled={!inlineEditContent.trim() || inlineEditSaving}
+                            <button onClick={saveMemoInlineEdit} disabled={!inlineEditContent.trim() || inlineEditSaving}
                               className="text-xs text-jade hover:text-gold transition-colors px-2 py-1 disabled:opacity-40">
                               {inlineEditSaving ? "保存中..." : "保存"}
                             </button>
@@ -887,7 +1422,7 @@ export default function PersonDetailPage() {
                           <span className="text-[10px] text-text-muted">{relativeTime(obs.createdAt)}</span>
                         </div>
                       </div>
-                      <button onClick={() => startInlineEdit(obs)}
+                      <button onClick={() => startMemoInlineEdit(obs)}
                         className="shrink-0 text-text-muted hover:text-gold transition-colors opacity-0 group-hover:opacity-100 sm:opacity-0 sm:group-hover:opacity-100 mt-0.5"
                         title="編集">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

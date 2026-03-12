@@ -41,7 +41,14 @@ export async function POST(request: NextRequest) {
       bloodType,
       birthCountry,
       birthOrder,
+      honorific,
       personalContext,
+      acquaintanceDate,
+      intimacyScore,
+      contactFrequency,
+      mbti,
+      maritalStatus,
+      hasChildren,
       observations,
     } = body;
 
@@ -66,7 +73,14 @@ export async function POST(request: NextRequest) {
         bloodType: bloodType || null,
         birthCountry: birthCountry || null,
         birthOrder: birthOrder || null,
+        honorific: honorific || null,
         personalContext: personalContext || null,
+        acquaintanceDate: acquaintanceDate || null,
+        intimacyScore: intimacyScore ? parseInt(String(intimacyScore), 10) : 5,
+        contactFrequency: contactFrequency || null,
+        mbti: mbti || null,
+        maritalStatus: maritalStatus || null,
+        hasChildren: hasChildren || null,
         observations: {
           create: (observations as string[])
             ?.filter((o: string) => o.trim())

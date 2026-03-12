@@ -78,9 +78,15 @@ export async function POST(
       ? `\n## 既存のクイック分析結果\n${person.quickNote}\n`
       : "";
 
+    const honorificSuffix = person.honorific || "さん";
     const userMessage = `${myselfSection}
+## 名前の呼び方
+- ${person.nickname}を呼ぶ際は「${person.nickname}${honorificSuffix}」と呼んでください
+${userProfile ? `- ${userProfile.nickname}を呼ぶ際は「${userProfile.nickname}さん」と呼んでください` : ""}
+
 ## 分析対象
 ニックネーム: ${person.nickname}
+敬称: ${honorificSuffix}
 関係性: ${person.relationship}
 観察メモ: ${observations.length > 0 ? observations.join("、") : "なし"}
 西洋星座: ${personDiv.solarSign ?? "不明"}

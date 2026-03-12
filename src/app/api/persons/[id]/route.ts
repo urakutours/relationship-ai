@@ -45,7 +45,14 @@ export async function PATCH(
       bloodType,
       birthCountry,
       birthOrder,
+      honorific,
       personalContext,
+      acquaintanceDate,
+      intimacyScore,
+      contactFrequency,
+      mbti,
+      maritalStatus,
+      hasChildren,
       observations, // { add: string[], delete: string[] }
     } = body;
 
@@ -62,7 +69,14 @@ export async function PATCH(
     if (bloodType !== undefined) updateData.bloodType = bloodType || null;
     if (birthCountry !== undefined) updateData.birthCountry = birthCountry || null;
     if (birthOrder !== undefined) updateData.birthOrder = birthOrder || null;
+    if (honorific !== undefined) updateData.honorific = honorific || null;
     if (personalContext !== undefined) updateData.personalContext = personalContext || null;
+    if (acquaintanceDate !== undefined) updateData.acquaintanceDate = acquaintanceDate || null;
+    if (intimacyScore !== undefined) updateData.intimacyScore = intimacyScore !== null ? parseInt(String(intimacyScore), 10) : null;
+    if (contactFrequency !== undefined) updateData.contactFrequency = contactFrequency || null;
+    if (mbti !== undefined) updateData.mbti = mbti || null;
+    if (maritalStatus !== undefined) updateData.maritalStatus = maritalStatus || null;
+    if (hasChildren !== undefined) updateData.hasChildren = hasChildren || null;
 
     const person = await prisma.person.update({
       where: { id },

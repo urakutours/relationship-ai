@@ -41,6 +41,42 @@ export interface PersonInput {
   observations: string[];
 }
 
+// 接触頻度の選択肢
+export const CONTACT_FREQUENCY_OPTIONS = [
+  { value: "daily", label: "毎日会う" },
+  { value: "weekly", label: "週1程度" },
+  { value: "monthly", label: "月1程度" },
+  { value: "few_times_year", label: "年数回" },
+  { value: "rarely", label: "ほとんど会わない" },
+] as const;
+export type ContactFrequency = (typeof CONTACT_FREQUENCY_OPTIONS)[number]["value"];
+
+// MBTI 16タイプ
+export const MBTI_TYPES = [
+  "INTJ", "INTP", "ENTJ", "ENTP",
+  "INFJ", "INFP", "ENFJ", "ENFP",
+  "ISTJ", "ISFJ", "ESTJ", "ESFJ",
+  "ISTP", "ISFP", "ESTP", "ESFP",
+] as const;
+export type MbtiType = (typeof MBTI_TYPES)[number];
+
+// 婚姻状況の選択肢
+export const MARITAL_STATUS_OPTIONS = [
+  { value: "single", label: "独身" },
+  { value: "married", label: "既婚" },
+  { value: "divorced", label: "離婚" },
+  { value: "unknown", label: "不明" },
+] as const;
+export type MaritalStatus = (typeof MARITAL_STATUS_OPTIONS)[number]["value"];
+
+// 子供の有無
+export const HAS_CHILDREN_OPTIONS = [
+  { value: "yes", label: "あり" },
+  { value: "no", label: "なし" },
+  { value: "unknown", label: "不明" },
+] as const;
+export type HasChildren = (typeof HAS_CHILDREN_OPTIONS)[number]["value"];
+
 // 観察メモカテゴリ
 export const OBSERVATION_CATEGORIES = [
   { value: "behavior", label: "行動パターン", icon: "🔄" },
@@ -89,7 +125,14 @@ export interface PersonData {
   bloodType: string | null;
   birthCountry: string | null;
   birthOrder: string | null;
+  honorific: string | null;
   personalContext: string | null;
+  acquaintanceDate: string | null;
+  intimacyScore: number | null;
+  contactFrequency: string | null;
+  mbti: string | null;
+  maritalStatus: string | null;
+  hasChildren: string | null;
   observations: ObservationData[];
   labels: PersonLabelData[];
   sortOrder: number | null;
@@ -139,6 +182,7 @@ export interface ConsultPayload {
   myself: MyselfInfo | null; // 自分のプロフィール（未登録時はnull）
   target: {
     nickname: string;
+    honorific?: string | null;
     relationship: string;
     observedTraits: string[];
     divination: DivinationResult;

@@ -21,9 +21,16 @@ model Person {
   birthYear      Int?     // 生まれた年（任意）
   gender         String?  // 男性/女性/その他
   bloodType      String?  // A/B/O/AB
+  honorific      String?  // 敬称（さん/ちゃん/くん/様/先生等、空欄時は「さん」）
   birthCountry   String?  // 出身国
   birthOrder     String?  // 長子/中間/末子/一人っ子/不明
   personalContext String?  // 家族構成・パートナーの有無・生活環境などの自由記述
+  acquaintanceDate String?  // 知り合った日（YYYY or YYYY-MM or YYYY-MM-DD）
+  intimacyScore   Int?     @default(5) // 親密度 0〜10
+  contactFrequency String?  // daily/weekly/monthly/few_times_year/rarely
+  mbti            String?  // MBTI（INTJ等、または unknown）
+  maritalStatus   String?  // single/married/divorced/unknown
+  hasChildren     String?  // yes/no/unknown
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

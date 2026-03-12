@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
       myself,
       target: {
         nickname: person.nickname,
+        honorific: person.honorific,
         relationship: person.relationship,
         observedTraits: person.observations.map((o) => o.content),
         divination,

@@ -88,10 +88,19 @@ ${target.recentConsultations.map((c) => `- ${c.date}: ${c.query}`).join("\n")}
 `;
   }
 
+  // 敬称指示
+  const honorificSuffix = target.honorific || "さん";
+  const honorificNote = `
+## 名前の呼び方
+- ${target.nickname}を呼ぶ際は「${target.nickname}${honorificSuffix}」と呼んでください
+${myself ? `- ${myself.nickname}を呼ぶ際は「${myself.nickname}さん」と呼んでください` : ""}
+`;
+
   // ユーザーメッセージの構築
   const userMessage = `${myselfSection}
 ## target（相談相手）
 ニックネーム: ${target.nickname}
+敬称: ${honorificSuffix}
 関係性: ${target.relationship}
 観察メモ: ${target.observedTraits.length > 0 ? target.observedTraits.join("、") : "なし"}
 西洋星座: ${target.divination.solarSign ?? "不明"}
@@ -103,7 +112,7 @@ ${target.recentConsultations.map((c) => `- ${c.date}: ${c.query}`).join("\n")}
       ? `木${target.divination.wuxingProfile.wood} 火${target.divination.wuxingProfile.fire} 土${target.divination.wuxingProfile.earth} 金${target.divination.wuxingProfile.metal} 水${target.divination.wuxingProfile.water}`
       : "不明"
   }
-${compressedMemorySection}${recentSection}
+${compressedMemorySection}${recentSection}${honorificNote}
 ## consultationContext（相談内容）
 ${consultationContext}
 `;
