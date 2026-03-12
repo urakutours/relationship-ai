@@ -79,6 +79,7 @@ export default function PersonDetailPage() {
   const [quickAnalyzing, setQuickAnalyzing] = useState(false);
   const [deepAnalyzing, setDeepAnalyzing] = useState(false);
   const [costInfo, setCostInfo] = useState<CostInfo | null>(null);
+  const [debugMode, setDebugMode] = useState(false);
   const [deepTruncated, setDeepTruncated] = useState(false);
   const [deepTruncatedContext, setDeepTruncatedContext] = useState<string | null>(null);
   const [continuingDeep, setContinuingDeep] = useState(false);
@@ -174,6 +175,8 @@ export default function PersonDetailPage() {
   }, [id]);
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setDebugMode(params.get("debug") === "true");
     fetchPerson().then((p) => {
       setLoading(false);
       if (p && !p.quickNote) startPolling();
@@ -769,7 +772,7 @@ export default function PersonDetailPage() {
       <Link href="/persons" className="inline-flex items-center gap-1 text-text-muted text-sm hover:text-gold transition-colors">← 一覧に戻る</Link>
 
       {/* ===== ヘッダーカード / 編集モード ===== */}
-      {editMode ? (
+      {(editMode && !inlineField) ? (
         <div className="card space-y-4">
           <h2 className="font-display text-lg text-gold tracking-wide mb-2">編集</h2>
 
@@ -1580,8 +1583,8 @@ export default function PersonDetailPage() {
             )}
           </div>
 
-          {/* コスト情報 */}
-          {costInfo && (
+          {/* コスト情報（debug=true パラメータ時のみ） */}
+          {debugMode && costInfo && (
             <div className="text-[11px] text-text-muted bg-surface-hover rounded px-3 py-2 font-mono">
               入力: {costInfo.inputTokens} | 出力: {costInfo.outputTokens} | キャッシュ読: {costInfo.cacheReadTokens} | キャッシュ作成: {costInfo.cacheCreationTokens} | 推定コスト: ¥{costInfo.estimatedCostJPY.toFixed(4)}
             </div>
@@ -1829,7 +1832,7 @@ export default function PersonDetailPage() {
                     </div>
                   )}
 
-                  {consultCostInfo && (
+                  {debugMode && consultCostInfo && (
                     <div className="text-[10px] text-text-muted bg-surface-hover rounded px-2 py-1 font-mono">
                       IN:{consultCostInfo.inputTokens} OUT:{consultCostInfo.outputTokens} COST:¥{consultCostInfo.estimatedCostJPY.toFixed(4)}
                     </div>

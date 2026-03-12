@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { href: "/persons", label: "人物一覧" },
   { href: "/consult", label: "相談履歴" },
   { href: "/profile", label: "自分のプロフィール" },
+  { href: "/settings", label: "設定" },
 ] as const;
 
 export function SidebarNav() {

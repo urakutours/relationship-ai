@@ -56,6 +56,7 @@ export default function HomePage() {
   const [costInfo, setCostInfo] = useState<CostInfo | null>(null);
   const [cachedWeather, setCachedWeather] = useState<string | null>(null);
   const [profileExists, setProfileExists] = useState<boolean | null>(null);
+  const [debugMode, setDebugMode] = useState(false);
 
   // ダッシュボードデータ
   const [events, setEvents] = useState<DashboardEvent[]>([]);
@@ -64,6 +65,12 @@ export default function HomePage() {
 
   const today = new Date();
   const weekdayMessage = WEEKDAY_MESSAGES[today.getDay()];
+
+  // debug パラメータ検出
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    setDebugMode(params.get("debug") === "true");
+  }, []);
 
   // プロフィール＆ダッシュボードデータ取得
   useEffect(() => {
@@ -206,8 +213,8 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* コスト表示（開発環境のみ） */}
-        {costInfo && (
+        {/* コスト表示（debug=true パラメータ時のみ） */}
+        {debugMode && costInfo && (
           <div className="mt-4 py-2 px-3 bg-base rounded-[4px] text-[10px] text-text-muted font-display tracking-wide">
             IN:{costInfo.inputTokens} | OUT:{costInfo.outputTokens} |
             CACHE_R:{costInfo.cacheReadTokens} | CACHE_W:{costInfo.cacheCreationTokens} |
@@ -346,7 +353,7 @@ export default function HomePage() {
         </Link>
 
         <Link
-          href="/consult"
+          href="/consult/new"
           className="card hover:border-gold transition-all duration-300 group flex items-center gap-4"
         >
           <span className="w-10 h-10 rounded-lg bg-jade/10 border border-jade-dim flex items-center justify-center text-jade shrink-0">

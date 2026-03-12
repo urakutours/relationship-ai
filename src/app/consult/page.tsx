@@ -156,9 +156,9 @@ export default function ConsultHistoryPage() {
         <h1 className="font-display text-[32px] font-light text-gold tracking-wide">
           相談履歴
         </h1>
-        <Link href="/persons"
+        <Link href="/consult/new"
           className="inline-flex items-center gap-1.5 px-4 py-2 border border-jade-dim text-jade bg-transparent rounded-[4px] text-sm hover:bg-jade hover:text-base transition-all duration-300">
-          <span className="text-base leading-none">＋</span>
+          <span className="text-jade leading-none">+</span>
           新しい相談
         </Link>
       </div>
