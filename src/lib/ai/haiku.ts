@@ -113,12 +113,31 @@ export interface BiorhythmResult {
  */
 export async function generateBiorhythmAdvice(
   todayDate: string,
-  weather: string
+  weather: string,
+  monthlyContext?: string | null,
+  userProfile?: { mbti?: string | null; gender?: string | null } | null
 ): Promise<BiorhythmResult> {
   const anthropic = getClient();
 
+  let contextSection = "";
+  if (monthlyContext) {
+    try {
+      const monthly = JSON.parse(monthlyContext);
+      contextSection += `\n今月のテーマ: ${monthly.monthlyTheme ?? ""}`;
+      contextSection += `\n今月の人間関係アドバイス: ${monthly.relationships ?? ""}`;
+    } catch {
+      // パース失敗時は無視
+    }
+  }
+  if (userProfile?.mbti) {
+    contextSection += `\nユーザーのMBTI: ${userProfile.mbti}`;
+  }
+  if (userProfile?.gender) {
+    contextSection += `\nユーザーの性別: ${userProfile.gender}`;
+  }
+
   const userMessage = `今日の日付: ${todayDate}
-天気: ${weather}
+天気: ${weather}${contextSection}
 
 今日の心がけるべきことを教えてください。`;
 

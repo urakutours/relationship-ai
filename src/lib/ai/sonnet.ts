@@ -6,10 +6,12 @@ import {
   SONNET_CONSULT_FREE_INSTRUCTION,
   SONNET_CONSULT_PREMIUM_INSTRUCTION,
   SONNET_CONSULT_DEEP_INSTRUCTION,
+  SONNET_MONTHLY_GUIDANCE_INSTRUCTION,
+  SONNET_WEEKLY_GUIDANCE_INSTRUCTION,
 } from "./prompts";
 import { getClient } from "./client";
 import { calculateCost } from "@/lib/cost-tracker";
-import type { CostInfo, ConsultPayload } from "@/lib/types";
+import type { CostInfo, ConsultPayload, DivinationResult } from "@/lib/types";
 
 const SONNET_MODEL = "claude-sonnet-4-6";
 
@@ -159,4 +161,171 @@ ${consultationContext}
     isTruncated,
     truncatedContext: isTruncated ? text.trim() : undefined,
   };
+}
+
+/** ガイダンス生成結果 */
+export interface GuidanceResult {
+  content: string;
+  costInfo?: CostInfo;
+}
+
+/** ユーザープロフィール情報（ガイダンス用） */
+interface GuidanceUserProfile {
+  nickname: string;
+  mbti?: string | null;
+  gender?: string | null;
+  memoTags?: string[];
+}
+
+/**
+ * Sonnetで月次ガイダンスを生成する
+ */
+export async function generateMonthlyGuidance(
+  userProfile: GuidanceUserProfile,
+  divination: DivinationResult,
+  monthKey: string
+): Promise<GuidanceResult> {
+  const anthropic = getClient();
+
+  const userMessage = `## 対象期間
+${monthKey}（${parseInt(monthKey.split("-")[1])}月）
+
+## ユーザープロフィール
+ニックネーム: ${userProfile.nickname}
+MBTI: ${userProfile.mbti ?? "不明"}
+性別: ${userProfile.gender ?? "不明"}
+特性メモ: ${userProfile.memoTags && userProfile.memoTags.length > 0 ? userProfile.memoTags.join("、") : "なし"}
+
+## 占術情報
+西洋星座: ${divination.solarSign ?? "不明"}
+数秘術（誕生数）: ${divination.numerology ?? "不明"}
+九星: ${divination.kyusei ?? "不明"}
+日干: ${divination.dayKan ?? "不明"}
+五行バランス: ${
+    divination.wuxingProfile
+      ? `木${divination.wuxingProfile.wood} 火${divination.wuxingProfile.fire} 土${divination.wuxingProfile.earth} 金${divination.wuxingProfile.metal} 水${divination.wuxingProfile.water}`
+      : "不明"
+  }
+
+今月のパーソナルガイダンスをJSON形式で生成してください。`;
+
+  const response = await anthropic.messages.create({
+    model: SONNET_MODEL,
+    max_tokens: 800,
+    system: [
+      {
+        type: "text",
+        text: DIVINATION_SYSTEM_PROMPT,
+        cache_control: { type: "ephemeral" },
+      },
+      {
+        type: "text",
+        text: SONNET_MONTHLY_GUIDANCE_INSTRUCTION,
+      },
+    ],
+    messages: [{ role: "user", content: userMessage }],
+  });
+
+  const costInfo =
+    process.env.NODE_ENV === "development"
+      ? calculateCost(
+          SONNET_MODEL,
+          response.usage.input_tokens,
+          response.usage.output_tokens,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ((response.usage as any).cache_read_input_tokens as number) ?? 0,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ((response.usage as any).cache_creation_input_tokens as number) ?? 0
+        )
+      : undefined;
+
+  const text =
+    response.content[0].type === "text" ? response.content[0].text : "";
+
+  return { content: text.trim(), costInfo };
+}
+
+/**
+ * Sonnetで週次ガイダンスを生成する
+ */
+export async function generateWeeklyGuidance(
+  userProfile: GuidanceUserProfile,
+  divination: DivinationResult,
+  weekKey: string,
+  weekRangeStr: string,
+  monthlyContext: string | null
+): Promise<GuidanceResult> {
+  const anthropic = getClient();
+
+  let monthlySection = "";
+  if (monthlyContext) {
+    try {
+      const monthly = JSON.parse(monthlyContext);
+      monthlySection = `
+## 今月のテーマ（参考）
+テーマ: ${monthly.monthlyTheme ?? ""}
+概要: ${monthly.overview ?? ""}
+人間関係: ${monthly.relationships ?? ""}
+`;
+    } catch {
+      // パース失敗時は無視
+    }
+  }
+
+  const userMessage = `## 対象期間
+${weekKey}（${weekRangeStr}）
+${monthlySection}
+## ユーザープロフィール
+ニックネーム: ${userProfile.nickname}
+MBTI: ${userProfile.mbti ?? "不明"}
+性別: ${userProfile.gender ?? "不明"}
+特性メモ: ${userProfile.memoTags && userProfile.memoTags.length > 0 ? userProfile.memoTags.join("、") : "なし"}
+
+## 占術情報
+西洋星座: ${divination.solarSign ?? "不明"}
+数秘術（誕生数）: ${divination.numerology ?? "不明"}
+九星: ${divination.kyusei ?? "不明"}
+日干: ${divination.dayKan ?? "不明"}
+五行バランス: ${
+    divination.wuxingProfile
+      ? `木${divination.wuxingProfile.wood} 火${divination.wuxingProfile.fire} 土${divination.wuxingProfile.earth} 金${divination.wuxingProfile.metal} 水${divination.wuxingProfile.water}`
+      : "不明"
+  }
+
+今週のパーソナルガイダンスをJSON形式で生成してください。`;
+
+  const response = await anthropic.messages.create({
+    model: SONNET_MODEL,
+    max_tokens: 600,
+    system: [
+      {
+        type: "text",
+        text: DIVINATION_SYSTEM_PROMPT,
+        cache_control: { type: "ephemeral" },
+      },
+      {
+        type: "text",
+        text: SONNET_WEEKLY_GUIDANCE_INSTRUCTION,
+      },
+    ],
+    messages: [{ role: "user", content: userMessage }],
+  });
+
+  const costInfo =
+    process.env.NODE_ENV === "development"
+      ? calculateCost(
+          SONNET_MODEL,
+          response.usage.input_tokens,
+          response.usage.output_tokens,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ((response.usage as any).cache_read_input_tokens as number) ?? 0,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ((response.usage as any).cache_creation_input_tokens as number) ?? 0
+        )
+      : undefined;
+
+  const text =
+    response.content[0].type === "text" ? response.content[0].text : "";
+
+  return { content: text.trim(), costInfo };
 }

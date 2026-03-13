@@ -243,3 +243,21 @@ export interface CostInfo {
   cacheCreationTokens: number;
   estimatedCostJPY: number;
 }
+
+// 月次ガイダンスJSON構造
+export interface MonthlyGuidance {
+  monthlyTheme: string;    // 今月のテーマ（20文字以内）
+  overview: string;        // 全体的な運勢・傾向（100文字程度）
+  relationships: string;   // 人間関係の注意点と活かし方（100文字程度）
+  keyAction: string;       // 今月中に実行する具体的アクション（50文字以内）
+  luckyPoint: string;      // 意識すると良いこと（20文字以内）
+}
+
+// 週次ガイダンスJSON構造
+export interface WeeklyGuidance {
+  weeklyFocus: string;     // 今週の焦点（20文字以内）
+  overview: string;        // 今週の傾向（80文字程度）
+  relationships: string;   // 人間関係で意識すること（80文字程度）
+  bestDays: string;        // おすすめ行動日（例: 「水曜・木曜は交渉事に◎」）
+  keyAction: string;       // 今週の具体的アクション（50文字以内）
+}

@@ -117,3 +117,14 @@ model PersonLabel {
 
   @@id([personId, labelId])
 }
+
+// ガイダンスキャッシュ（日次/週次/月次アドバイスのキャッシュ）
+model GuidanceCache {
+  id          String   @id @default(cuid())
+  type        String   // "daily" / "weekly" / "monthly"
+  periodKey   String   // "2024-03-15" / "2024-W11" / "2024-03"
+  content     String   // JSON文字列（複数セクション格納）
+  generatedAt DateTime @default(now())
+
+  @@unique([type, periodKey])
+}
