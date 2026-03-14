@@ -3,6 +3,7 @@ import Link from "next/link";
 import "./globals.css";
 import { SidebarNav } from "./sidebar-nav";
 import { BottomNav } from "./bottom-nav";
+import { CostBadge } from "./cost-badge";
 
 export const metadata: Metadata = {
   title: "Relationship AI",
@@ -68,6 +69,9 @@ export default function RootLayout({
 
         {/* ボトムナビ（モバイル only） */}
         <BottomNav />
+
+        {/* コストバッジ（開発環境のみ） */}
+        <CostBadge />
       </body>
     </html>
   );

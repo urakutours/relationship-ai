@@ -51,24 +51,24 @@ export const CONTACT_FREQUENCY_OPTIONS = [
 ] as const;
 export type ContactFrequency = (typeof CONTACT_FREQUENCY_OPTIONS)[number]["value"];
 
-// MBTI 16タイプ（英語名 + 日本語説明）
+// MBTI 16タイプ（日本語タイプ名 + 日本語説明）
 export const MBTI_TYPES_DATA = [
-  { code: "INTJ", name: "Architect", desc: "戦略的な思考家" },
-  { code: "INTP", name: "Logician", desc: "論理的な発明家" },
-  { code: "ENTJ", name: "Commander", desc: "大胆な指導者" },
-  { code: "ENTP", name: "Debater", desc: "知的な挑戦者" },
-  { code: "INFJ", name: "Advocate", desc: "静かな理想主義者" },
-  { code: "INFP", name: "Mediator", desc: "共感的な仲介者" },
-  { code: "ENFJ", name: "Protagonist", desc: "カリスマ的な指導者" },
-  { code: "ENFP", name: "Campaigner", desc: "情熱的な自由人" },
-  { code: "ISTJ", name: "Logistician", desc: "誠実な管理者" },
-  { code: "ISFJ", name: "Defender", desc: "献身的な守護者" },
-  { code: "ESTJ", name: "Executive", desc: "秩序ある管理者" },
-  { code: "ESFJ", name: "Consul", desc: "社交的な世話役" },
-  { code: "ISTP", name: "Virtuoso", desc: "大胆な職人" },
-  { code: "ISFP", name: "Adventurer", desc: "柔軟な芸術家" },
-  { code: "ESTP", name: "Entrepreneur", desc: "エネルギッシュな起業家" },
-  { code: "ESFP", name: "Entertainer", desc: "陽気なエンターテイナー" },
+  { code: "INTJ", label: "建築家", desc: "戦略的な思考家" },
+  { code: "INTP", label: "論理学者", desc: "論理的な発明家" },
+  { code: "ENTJ", label: "指揮官", desc: "大胆な指導者" },
+  { code: "ENTP", label: "討論者", desc: "知的な挑戦者" },
+  { code: "INFJ", label: "提唱者", desc: "静かな理想主義者" },
+  { code: "INFP", label: "仲介者", desc: "共感的な仲介者" },
+  { code: "ENFJ", label: "主人公", desc: "カリスマ的な指導者" },
+  { code: "ENFP", label: "広報運動家", desc: "情熱的な自由人" },
+  { code: "ISTJ", label: "管理者", desc: "誠実な管理者" },
+  { code: "ISFJ", label: "擁護者", desc: "献身的な守護者" },
+  { code: "ESTJ", label: "幹部", desc: "秩序ある管理者" },
+  { code: "ESFJ", label: "領事官", desc: "社交的な世話役" },
+  { code: "ISTP", label: "巨匠", desc: "大胆な職人" },
+  { code: "ISFP", label: "冒険家", desc: "柔軟な芸術家" },
+  { code: "ESTP", label: "起業家", desc: "エネルギッシュな起業家" },
+  { code: "ESFP", label: "エンターテイナー", desc: "陽気なエンターテイナー" },
 ] as const;
 
 // 後方互換: コード配列
@@ -173,10 +173,11 @@ export interface PersonData {
 // 占術計算結果
 export interface DivinationResult {
   solarSign: string | null; // 西洋星座
-  numerology: number | null; // 誕生数
+  numerology: number | null; // 誕生数（1-9 またはマスターナンバー 11, 22, 33）
   kyusei: string | null; // 九星
   dayKan: string | null; // 日干
   dayPillar: string | null; // 日柱（干支）
+  yearPillar: string | null; // 年柱（干支、立春境界考慮）
   wuxingProfile: WuxingProfile | null; // 五行プロフィール
 }
 

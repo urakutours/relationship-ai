@@ -404,38 +404,18 @@ export default function NewPersonPage() {
 
         {/* MBTI（任意） */}
         <div className="py-4">
-          <label className="block text-xs text-text-secondary mb-3 tracking-wide">
+          <label className="block text-xs text-text-secondary mb-2 tracking-wide">
             MBTI <span className="text-text-muted">(任意)</span>
           </label>
-          <div className="grid grid-cols-4 gap-1.5">
+          <select value={mbti} onChange={(e) => setMbti(e.target.value)} className="input-underline">
+            <option value="">未設定</option>
             {MBTI_TYPES_DATA.map((type) => (
-              <button
-                key={type.code}
-                type="button"
-                onClick={() => setMbti(mbti === type.code ? "" : type.code)}
-                className={`px-2 py-1.5 rounded border text-xs transition-all duration-200 text-left ${
-                  mbti === type.code
-                    ? "border-gold bg-gold/10 text-gold"
-                    : "border-border-subtle text-text-secondary hover:border-text-muted"
-                }`}
-                title={`${type.name} — ${type.desc}`}
-              >
-                <span className="font-mono">{type.code}</span>
-                <span className="block text-[10px] text-text-muted mt-0.5 truncate">{type.desc}</span>
-              </button>
+              <option key={type.code} value={type.code}>
+                {type.code}（{type.label}）
+              </option>
             ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => setMbti(mbti === "unknown" ? "" : "unknown")}
-            className={`mt-2 px-3 py-1.5 rounded border text-xs transition-all duration-200 ${
-              mbti === "unknown"
-                ? "border-gold bg-gold/10 text-gold"
-                : "border-border-subtle text-text-secondary hover:border-text-muted"
-            }`}
-          >
-            わからない
-          </button>
+            <option value="unknown">わからない</option>
+          </select>
         </div>
 
         {/* 婚姻状況（任意） */}

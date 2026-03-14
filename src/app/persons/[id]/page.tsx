@@ -18,6 +18,7 @@ import {
 import { RELATIONSHIP_CATEGORIES, formatRelationshipShort, formatRelationshipLabel } from "@/lib/relationship-types";
 import { BirthDateSelect } from "@/components/birth-date-select";
 import { CountrySelect } from "@/components/country-select";
+import { DivinationDebug } from "@/components/divination-debug";
 
 /** 相性スコアの色を返す */
 function getScoreColor(score: number): string {
@@ -152,6 +153,11 @@ export default function PersonDetailPage() {
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [compressing, setCompressing] = useState(false);
   const [compressMessage, setCompressMessage] = useState<string | null>(null);
+
+  // デバッグ: テスト一括相談
+  const [bulkConsulting, setBulkConsulting] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState(0);
+  const [memoryExpanded, setMemoryExpanded] = useState(false);
 
   // 結果記録モーダル
   const [outcomeLogId, setOutcomeLogId] = useState<string | null>(null);
@@ -645,6 +651,40 @@ export default function PersonDetailPage() {
     }
   };
 
+  // ===== テスト用: 5回一括相談（開発環境のみ） =====
+  const runBulkConsult = async () => {
+    if (bulkConsulting) return;
+    setBulkConsulting(true);
+    setBulkProgress(0);
+    const testQueries = [
+      "来週の会議でうまく話を進めるコツを教えて",
+      "最近少し距離を感じる。どうアプローチすべき？",
+      "お互いの意見が食い違ったとき、どう折り合いをつける？",
+      "信頼関係をもっと深めるにはどうしたらいい？",
+      "感謝の気持ちを自然に伝える方法を教えて",
+    ];
+    for (let i = 0; i < testQueries.length; i++) {
+      try {
+        setBulkProgress(i + 1);
+        await fetch("/api/consult", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            personId: id,
+            consultationContext: testQueries[i],
+            consultType: "standard",
+          }),
+        });
+      } catch (err) {
+        console.error(`テスト相談${i + 1}回目エラー:`, err);
+      }
+    }
+    // 相談履歴・人物データを再取得
+    await Promise.all([fetchConsultLogs(), fetchPerson()]);
+    setBulkConsulting(false);
+    setBulkProgress(0);
+  };
+
   // ===== 結果記録 =====
   const openOutcomeModal = (logId: string) => {
     setOutcomeLogId(logId);
@@ -956,22 +996,15 @@ export default function PersonDetailPage() {
           {/* MBTI */}
           <div>
             <label className="block text-xs text-text-secondary mb-1">MBTI</label>
-            <div className="grid grid-cols-4 gap-1.5">
+            <select value={editMbti} onChange={(e) => setEditMbti(e.target.value)} className="input-underline">
+              <option value="">未設定</option>
               {MBTI_TYPES_DATA.map((type) => (
-                <button key={type.code} type="button" onClick={() => setEditMbti(editMbti === type.code ? "" : type.code)}
-                  className={`px-2 py-1.5 rounded border text-xs transition-all text-left ${
-                    editMbti === type.code ? "border-gold bg-gold/10 text-gold" : "border-border-subtle text-text-secondary hover:border-text-muted"
-                  }`}
-                  title={`${type.name} — ${type.desc}`}>
-                  <span className="font-mono">{type.code}</span>
-                  <span className="block text-[10px] text-text-muted mt-0.5 truncate">{type.desc}</span>
-                </button>
+                <option key={type.code} value={type.code}>
+                  {type.code}（{type.label}）
+                </option>
               ))}
-            </div>
-            <button type="button" onClick={() => setEditMbti(editMbti === "unknown" ? "" : "unknown")}
-              className={`mt-2 px-3 py-1.5 rounded border text-xs transition-all ${
-                editMbti === "unknown" ? "border-gold bg-gold/10 text-gold" : "border-border-subtle text-text-secondary"
-              }`}>わからない</button>
+              <option value="unknown">わからない</option>
+            </select>
           </div>
 
           {/* 婚姻状況 */}
@@ -1261,21 +1294,15 @@ export default function PersonDetailPage() {
             {inlineField === "mbti" ? (
               <div className="py-1">
                 <label className="block text-xs text-text-secondary mb-1">MBTI</label>
-                <div className="grid grid-cols-4 gap-1">
+                <select value={editMbti} onChange={(e) => setEditMbti(e.target.value)} className="input-underline text-sm">
+                  <option value="">未設定</option>
                   {MBTI_TYPES_DATA.map((type) => (
-                    <button key={type.code} type="button" onClick={() => setEditMbti(editMbti === type.code ? "" : type.code)}
-                      className={`px-1.5 py-1 rounded border text-[11px] transition-all text-left ${
-                        editMbti === type.code ? "border-gold bg-gold/10 text-gold" : "border-border-subtle text-text-secondary hover:border-text-muted"
-                      }`}
-                      title={`${type.name} — ${type.desc}`}>
-                      <span className="font-mono">{type.code}</span>
-                    </button>
+                    <option key={type.code} value={type.code}>
+                      {type.code}（{type.label}）
+                    </option>
                   ))}
-                </div>
-                <button type="button" onClick={() => setEditMbti(editMbti === "unknown" ? "" : "unknown")}
-                  className={`mt-1 px-2 py-1 rounded border text-[11px] transition-all ${
-                    editMbti === "unknown" ? "border-gold bg-gold/10 text-gold" : "border-border-subtle text-text-secondary"
-                  }`}>わからない</button>
+                  <option value="unknown">わからない</option>
+                </select>
                 <InlineButtons />
               </div>
             ) : (
@@ -1640,6 +1667,73 @@ export default function PersonDetailPage() {
             </div>
           )}
 
+          {/* 開発環境: AI記憶サマリーデバッグ表示 */}
+          {debugMode && (
+            <div className="p-4 bg-[#2a2a2e] border border-[#444] rounded-lg">
+              {parsedMemory ? (
+                <>
+                  <button
+                    onClick={() => setMemoryExpanded(!memoryExpanded)}
+                    className="w-full flex items-center justify-between text-left"
+                  >
+                    <span className="text-[11px] text-[#999] tracking-widest font-mono">
+                      📋 AI記憶サマリー（最終更新: {person.memoryUpdatedAt ? formatDate(person.memoryUpdatedAt) : "不明"}）
+                    </span>
+                    <span className={`text-[#666] text-xs transition-transform duration-200 ${memoryExpanded ? "rotate-90" : ""}`}>▸</span>
+                  </button>
+                  {memoryExpanded && (
+                    <div className="mt-3 space-y-2 text-xs font-mono">
+                      <div>
+                        <span className="text-[#888]">相談回数:</span>{" "}
+                        <span className="text-[#ccc]">{parsedMemory.consultCount}回</span>
+                      </div>
+                      {parsedMemory.keyTraits.length > 0 && (
+                        <div>
+                          <p className="text-[#888] mb-0.5">性格特性:</p>
+                          {parsedMemory.keyTraits.map((t, i) => (
+                            <p key={i} className="text-[#ccc] pl-3">• {t}</p>
+                          ))}
+                        </div>
+                      )}
+                      {parsedMemory.successPatterns.length > 0 && (
+                        <div>
+                          <p className="text-[#888] mb-0.5">成功パターン:</p>
+                          {parsedMemory.successPatterns.map((p, i) => (
+                            <p key={i} className="text-jade pl-3">✓ {p}</p>
+                          ))}
+                        </div>
+                      )}
+                      {parsedMemory.failurePatterns.length > 0 && (
+                        <div>
+                          <p className="text-[#888] mb-0.5">注意パターン:</p>
+                          {parsedMemory.failurePatterns.map((p, i) => (
+                            <p key={i} className="text-[#c45c5c] pl-3">✗ {p}</p>
+                          ))}
+                        </div>
+                      )}
+                      {parsedMemory.importantContext.length > 0 && (
+                        <div>
+                          <p className="text-[#888] mb-0.5">重要コンテキスト:</p>
+                          {parsedMemory.importantContext.map((c, i) => (
+                            <p key={i} className="text-[#ccc] pl-3">◆ {c}</p>
+                          ))}
+                        </div>
+                      )}
+                      <div className="pt-2 border-t border-[#444] text-[10px] text-[#666]">
+                        consultCount={person.consultCount} | memoryUpdatedAt={person.memoryUpdatedAt ?? "null"}
+                        {" | "}次回自動圧縮: {person.consultCount ? `${5 - (person.consultCount % 5)}回後` : "5回後"}
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-[11px] text-[#999] font-mono">
+                  📋 記憶サマリーなし（相談{person.consultCount ?? 0}回 / 5回後に自動生成）
+                </div>
+              )}
+            </div>
+          )}
+
           {/* 記憶を整理するボタン */}
           <div className="flex items-center gap-3">
             <button
@@ -1653,6 +1747,24 @@ export default function PersonDetailPage() {
               <span className="text-xs text-jade">{compressMessage}</span>
             )}
           </div>
+
+          {/* 開発環境: テスト用5回一括相談ボタン */}
+          {debugMode && (
+            <div className="p-3 bg-[#2a2a2e] border border-[#444] rounded-lg">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={runBulkConsult}
+                  disabled={bulkConsulting}
+                  className="text-xs text-[#ccc] border border-[#555] rounded px-3 py-1.5 hover:bg-[#333] transition-colors disabled:opacity-40 font-mono"
+                >
+                  {bulkConsulting ? `テスト相談中... (${bulkProgress}/5)` : "🧪 5回テスト相談を実行"}
+                </button>
+                <span className="text-[10px] text-[#666] font-mono">
+                  ※ API呼び出し5回分のコストが発生します
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* 履歴一覧 */}
           {logsLoading ? (
@@ -1817,7 +1929,7 @@ export default function PersonDetailPage() {
                         {consultType === "deep" ? (
                           <span className="text-jade">✦ 詳細相談</span>
                         ) : (
-                          <span className="text-gold">Action Plan</span>
+                          <span className="text-gold">アクションプラン</span>
                         )}
                       </h4>
                       <div className="markdown-body text-[13px]">
@@ -1872,6 +1984,13 @@ export default function PersonDetailPage() {
           </div>
         </div>
       )}
+
+      {/* ===== 占術デバッグ表示（開発環境のみ） ===== */}
+      <DivinationDebug
+        birthDate={person.birthDate}
+        birthYear={person.birthYear}
+        visible={debugMode}
+      />
 
       {/* ===== 結果記録モーダル ===== */}
       {outcomeLogId && (

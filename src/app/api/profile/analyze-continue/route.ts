@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getClient } from "@/lib/ai/client";
-import { calculateCost } from "@/lib/cost-tracker";
+import { calculateCost, logApiCost } from "@/lib/cost-tracker";
 import { DIVINATION_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 
 const SONNET_MODEL = "claude-sonnet-4-6";
@@ -66,18 +66,17 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cacheRead = ((response.usage as any).cache_read_input_tokens as number) ?? 0;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cacheWrite = ((response.usage as any).cache_creation_input_tokens as number) ?? 0;
     const costInfo =
       process.env.NODE_ENV === "development"
-        ? calculateCost(
-            SONNET_MODEL,
-            response.usage.input_tokens,
-            response.usage.output_tokens,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ((response.usage as any).cache_read_input_tokens as number) ?? 0,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ((response.usage as any).cache_creation_input_tokens as number) ?? 0
-          )
+        ? calculateCost(SONNET_MODEL, response.usage.input_tokens, response.usage.output_tokens, cacheRead, cacheWrite)
         : undefined;
+
+    // コストログDB書き込み（全環境）
+    logApiCost("deep_analysis_continue", SONNET_MODEL, response.usage.input_tokens, response.usage.output_tokens, cacheRead, cacheWrite);
 
     return NextResponse.json({
       continuation: text.trim(),

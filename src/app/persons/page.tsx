@@ -1228,7 +1228,7 @@ export default function PersonsListPage() {
                         {consultType === "deep" ? (
                           <span className="text-jade">✦ 詳細相談</span>
                         ) : (
-                          <span className="text-gold">Action Plan</span>
+                          <span className="text-gold">アクションプラン</span>
                         )}
                       </h4>
                       <div className="markdown-body text-[13px]">

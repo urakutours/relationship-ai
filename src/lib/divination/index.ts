@@ -4,7 +4,7 @@ import type { DivinationResult } from "@/lib/types";
 import { calculateSolarSign } from "./solar-sign";
 import { calculateNumerology } from "./numerology";
 import { calculateKyuseiFromBirth } from "./kyusei";
-import { calculateDayPillar } from "./shichusuimei";
+import { calculateDayPillar, calculateYearPillar } from "./shichusuimei";
 import { calculateWuxingProfile } from "./wuxing";
 
 export {
@@ -16,10 +16,18 @@ export { calculateNumerology, NUMEROLOGY_TRAITS } from "./numerology";
 export {
   calculateKyusei,
   calculateKyuseiFromBirth,
+  getKyuseiYear,
   KYUSEI_TRAITS,
   KYUSEI_NAMES,
+  LICHUN_MONTH,
+  LICHUN_DAY,
 } from "./kyusei";
-export { calculateDayPillar, DAY_KAN_TRAITS, TEN_STEMS } from "./shichusuimei";
+export {
+  calculateDayPillar,
+  calculateYearPillar,
+  DAY_KAN_TRAITS,
+  TEN_STEMS,
+} from "./shichusuimei";
 export {
   calculateWuxingProfile,
   getDominantElement,
@@ -52,6 +60,7 @@ export function calcDivinationProfile(input: DivinationInput): DivinationResult 
   const numerology = calculateNumerology(birthDate);
   const kyusei = calculateKyuseiFromBirth(birthDate, birthYear);
   const dayPillarResult = calculateDayPillar(birthDate);
+  const yearPillarResult = calculateYearPillar(birthDate, birthYear);
   const wuxingProfile = calculateWuxingProfile(solarSign, kyusei);
 
   return {
@@ -60,6 +69,7 @@ export function calcDivinationProfile(input: DivinationInput): DivinationResult 
     kyusei,
     dayKan: dayPillarResult?.dayKan ?? null,
     dayPillar: dayPillarResult?.pillar ?? null,
+    yearPillar: yearPillarResult?.pillar ?? null,
     wuxingProfile,
   };
 }

@@ -3,7 +3,7 @@
 
 import { HAIKU_COMPRESS_MEMORY_INSTRUCTION } from "./prompts";
 import { getClient } from "./client";
-import { calculateCost } from "@/lib/cost-tracker";
+import { calculateCost, logApiCost } from "@/lib/cost-tracker";
 import type { CompressedMemory, CostInfo } from "@/lib/types";
 
 const HAIKU_MODEL = "claude-haiku-4-5-20251001";
@@ -20,6 +20,15 @@ interface ConsultLogEntry {
 export interface CompressMemoryResult {
   memory: CompressedMemory;
   costInfo?: CostInfo;
+}
+
+/** usageからキャッシュトークン数を安全に取得するヘルパー */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getCacheTokens(usage: any): { read: number; write: number } {
+  return {
+    read: (usage.cache_read_input_tokens as number) ?? 0,
+    write: (usage.cache_creation_input_tokens as number) ?? 0,
+  };
 }
 
 /**
@@ -67,18 +76,15 @@ ${logsText}`;
       messages: [{ role: "user", content: userMessage }],
     });
 
+    const cache = getCacheTokens(response.usage);
+
     const costInfo =
       process.env.NODE_ENV === "development"
-        ? calculateCost(
-            HAIKU_MODEL,
-            response.usage.input_tokens,
-            response.usage.output_tokens,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ((response.usage as any).cache_read_input_tokens as number) ?? 0,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ((response.usage as any).cache_creation_input_tokens as number) ?? 0
-          )
+        ? calculateCost(HAIKU_MODEL, response.usage.input_tokens, response.usage.output_tokens, cache.read, cache.write)
         : undefined;
+
+    // コストログDB書き込み（全環境）
+    logApiCost("memory_compress", HAIKU_MODEL, response.usage.input_tokens, response.usage.output_tokens, cache.read, cache.write);
 
     const text =
       response.content[0].type === "text" ? response.content[0].text : "";

@@ -1,4 +1,5 @@
 // 数秘術（誕生数）計算ロジック
+// マスターナンバー（11, 22, 33）を保持する
 
 /** 各誕生数の基本特性 */
 export const NUMEROLOGY_TRAITS: Record<number, string> = {
@@ -11,7 +12,14 @@ export const NUMEROLOGY_TRAITS: Record<number, string> = {
   7: "分析力・探求心・内省的・孤独になりやすい・スピリチュアルな素質",
   8: "権力・物質的成功・組織力・支配的・ビジネス感覚が鋭い",
   9: "博愛・完成・理想主義・執着を手放しにくい・人類愛に溢れる",
+  // マスターナンバー
+  11: "直感力・霊感・高い理想・繊細・インスピレーションの伝達者・二面性を持つ",
+  22: "マスタービルダー・大きなビジョンを実現する力・実践的な理想主義者・プレッシャーに弱い",
+  33: "マスターティーチャー・無条件の愛・献身・自己犠牲・精神的な導き手",
 };
+
+/** マスターナンバーの定義 */
+const MASTER_NUMBERS = [11, 22, 33] as const;
 
 /**
  * 数字の各桁を合計する
@@ -25,11 +33,13 @@ function sumDigits(num: number): number {
 
 /**
  * 生年月日から誕生数を計算する
- * 各桁を足して1桁になるまで繰り返す
- * 例: 1990/05/23 → 1+9+9+0+0+5+2+3 = 29 → 2+9 = 11 → 1+1 = 2
+ * 各桁を足してマスターナンバー（11, 22, 33）または1桁になるまで繰り返す
+ *
+ * 例: 1985/02/04 → 1+9+8+5+0+2+0+4 = 29 → 2+9 = 11 → マスターナンバー11
+ * 例: 1975/03/15 → 1+9+7+5+0+3+1+5 = 31 → 3+1 = 4
  *
  * @param birthDate YYYY-MM-DD形式の文字列
- * @returns 誕生数（1〜9）またはnull
+ * @returns 誕生数（1〜9 または 11, 22, 33）またはnull
  */
 export function calculateNumerology(birthDate: string | null): number | null {
   if (!birthDate) return null;
@@ -44,8 +54,12 @@ export function calculateNumerology(birthDate: string | null): number | null {
     .split("")
     .reduce((sum, digit) => sum + parseInt(digit, 10), 0);
 
-  // 1桁になるまで繰り返す
+  // マスターナンバーまたは1桁になるまで繰り返す
   while (total >= 10) {
+    // マスターナンバーチェック
+    if ((MASTER_NUMBERS as readonly number[]).includes(total)) {
+      return total;
+    }
     total = sumDigits(total);
   }
 

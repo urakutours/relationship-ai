@@ -1,8 +1,9 @@
-// APIコスト計算ユーティリティ（開発環境用）
+// APIコスト計算・ログ記録ユーティリティ
 
 import type { CostInfo } from "@/lib/types";
+import { prisma } from "@/lib/prisma";
 
-// 2024年時点のClaude APIの料金（USD/1Mトークン）
+// Claude APIの料金（USD/1Mトークン）
 const PRICING = {
   "claude-haiku-4-5-20251001": {
     input: 1.0,
@@ -18,20 +19,25 @@ const PRICING = {
   },
 } as const;
 
-// USD→JPYの概算レート
-const USD_TO_JPY = 150;
+// USD→JPYの概算レート（将来変更可能）
+export const USD_TO_JPY = 150;
 
 type ModelId = keyof typeof PRICING;
 
+/** 機能名の型定義 */
+export type FeatureName =
+  | "daily_guidance"
+  | "weekly_guidance"
+  | "monthly_guidance"
+  | "consultation"
+  | "compatibility"
+  | "memory_compress"
+  | "quick_analysis"
+  | "deep_analysis"
+  | "deep_analysis_continue";
+
 /**
- * APIレスポンスのusage情報からコストを計算する
- *
- * @param model モデルID
- * @param inputTokens 入力トークン数
- * @param outputTokens 出力トークン数
- * @param cacheReadTokens キャッシュ読み取りトークン数
- * @param cacheCreationTokens キャッシュ作成トークン数
- * @returns コスト情報
+ * APIレスポンスのusage情報からコスト情報を計算する（開発環境用表示）
  */
 export function calculateCost(
   model: string,
@@ -42,7 +48,6 @@ export function calculateCost(
 ): CostInfo {
   const pricing = PRICING[model as ModelId] ?? PRICING["claude-haiku-4-5-20251001"];
 
-  // コスト計算（USD）
   const inputCostUSD = (inputTokens / 1_000_000) * pricing.input;
   const outputCostUSD = (outputTokens / 1_000_000) * pricing.output;
   const cacheReadCostUSD = (cacheReadTokens / 1_000_000) * pricing.cacheRead;
@@ -52,7 +57,6 @@ export function calculateCost(
   const totalCostUSD =
     inputCostUSD + outputCostUSD + cacheReadCostUSD + cacheWriteCostUSD;
 
-  // 円換算
   const estimatedCostJPY = Math.round(totalCostUSD * USD_TO_JPY * 10000) / 10000;
 
   return {
@@ -75,4 +79,61 @@ export function formatCostInfo(cost: CostInfo): string {
     `キャッシュ作成: ${cost.cacheCreationTokens}トークン`,
     `推定コスト: ¥${cost.estimatedCostJPY.toFixed(4)}`,
   ].join(" | ");
+}
+
+/**
+ * USDコストを計算する（DB保存用）
+ */
+export function calcCostUSD(
+  model: string,
+  inputTokens: number,
+  outputTokens: number,
+  cacheReadTokens: number = 0,
+  cacheWriteTokens: number = 0
+): number {
+  const pricing = PRICING[model as ModelId] ?? PRICING["claude-haiku-4-5-20251001"];
+
+  // キャッシュ読み取り分を入力トークンから除外（二重課金防止）
+  const pureInputTokens = inputTokens - cacheReadTokens;
+
+  return (
+    (pureInputTokens / 1_000_000) * pricing.input +
+    (outputTokens / 1_000_000) * pricing.output +
+    (cacheReadTokens / 1_000_000) * pricing.cacheRead +
+    (cacheWriteTokens / 1_000_000) * pricing.cacheWrite
+  );
+}
+
+/**
+ * APIコストログをDBに非同期で書き込む
+ * レスポンスをブロックしないよう、エラーはログ出力のみ
+ */
+export function logApiCost(
+  feature: FeatureName,
+  model: string,
+  inputTokens: number,
+  outputTokens: number,
+  cacheReadTokens: number = 0,
+  cacheWriteTokens: number = 0
+): void {
+  const costUSD = calcCostUSD(model, inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens);
+  const costJPY = Math.round(costUSD * USD_TO_JPY * 10000) / 10000;
+
+  // 非同期でDB書き込み（レスポンスをブロックしない）
+  prisma.apiCostLog
+    .create({
+      data: {
+        feature,
+        model,
+        inputTokens,
+        outputTokens,
+        cacheReadTokens,
+        cacheWriteTokens,
+        costUSD,
+        costJPY,
+      },
+    })
+    .catch((err: unknown) => {
+      console.error("コストログ書き込みエラー:", err);
+    });
 }

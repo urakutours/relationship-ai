@@ -3,7 +3,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getClient } from "@/lib/ai/client";
-import { calculateCost } from "@/lib/cost-tracker";
+import { calculateCost, logApiCost } from "@/lib/cost-tracker";
 import { calcDivinationProfile } from "@/lib/divination";
 import {
   DIVINATION_SYSTEM_PROMPT,
@@ -82,18 +82,17 @@ MBTI: ${userProfile.mbti ?? "不明"}
       },
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cacheRead = ((response.usage as any).cache_read_input_tokens as number) ?? 0;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cacheWrite = ((response.usage as any).cache_creation_input_tokens as number) ?? 0;
     const costInfo =
       process.env.NODE_ENV === "development"
-        ? calculateCost(
-            HAIKU_MODEL,
-            response.usage.input_tokens,
-            response.usage.output_tokens,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ((response.usage as any).cache_read_input_tokens as number) ?? 0,
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            ((response.usage as any).cache_creation_input_tokens as number) ?? 0
-          )
+        ? calculateCost(HAIKU_MODEL, response.usage.input_tokens, response.usage.output_tokens, cacheRead, cacheWrite)
         : undefined;
+
+    // コストログDB書き込み（全環境）
+    logApiCost("quick_analysis", HAIKU_MODEL, response.usage.input_tokens, response.usage.output_tokens, cacheRead, cacheWrite);
 
     return NextResponse.json({
       quickNote: text.trim(),

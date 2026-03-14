@@ -1,9 +1,9 @@
-// バイオリズム（今日のアドバイス）API（Haiku呼び出し）
-// 月次ガイダンスのコンテキストとユーザープロフィールを活用
+// バイオリズム（今日のアドバイス）API（Haiku呼び出し・軽量版）
+// 月次・週次ガイダンスキャッシュを文脈として渡し、占術DBは直接渡さない
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateBiorhythmAdvice } from "@/lib/ai/haiku";
-import { getMonthKey } from "@/lib/date-utils";
+import { getMonthKey, getISOWeekKey } from "@/lib/date-utils";
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,23 +13,36 @@ export async function POST(request: NextRequest) {
     const today = new Date();
     const todayStr = `${today.getFullYear()}年${today.getMonth() + 1}月${today.getDate()}日`;
 
-    // ユーザープロフィール取得
-    const userProfile = await prisma.userProfile.findUnique({ where: { id: 1 } });
-
-    // 月次ガイダンスキャッシュ取得（コンテキストとして渡す）
+    // 並列取得: プロフィール、月次キャッシュ、週次キャッシュ、人物数、直近相談
     const monthKey = getMonthKey(today);
-    const monthlyCache = await prisma.guidanceCache.findUnique({
-      where: { type_periodKey: { type: "monthly", periodKey: monthKey } },
-    });
+    const weekKey = getISOWeekKey(today);
 
-    // Haiku呼び出し（月次コンテキスト＋プロフィール連動）
+    const [userProfile, monthlyCache, weeklyCache, personCount, lastConsult] =
+      await Promise.all([
+        prisma.userProfile.findUnique({ where: { id: 1 } }),
+        prisma.guidanceCache.findUnique({
+          where: { type_periodKey: { type: "monthly", periodKey: monthKey } },
+        }),
+        prisma.guidanceCache.findUnique({
+          where: { type_periodKey: { type: "weekly", periodKey: weekKey } },
+        }),
+        prisma.person.count(),
+        prisma.consultationLog.findFirst({
+          orderBy: { createdAt: "desc" },
+          include: { person: { select: { nickname: true } } },
+        }),
+      ]);
+
+    // Haiku呼び出し（軽量版: 月次・週次コンテキスト＋プロフィール連動）
     const result = await generateBiorhythmAdvice(
       todayStr,
       weather,
       monthlyCache?.content ?? null,
+      weeklyCache?.content ?? null,
       userProfile
         ? { mbti: userProfile.mbti, gender: userProfile.gender }
-        : null
+        : null,
+      { personCount, lastConsultedPerson: lastConsult?.person?.nickname ?? null }
     );
 
     return NextResponse.json({

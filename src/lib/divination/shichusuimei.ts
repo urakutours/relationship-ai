@@ -1,4 +1,7 @@
-// 四柱推命・日柱（簡易版）計算ロジック
+// 四柱推命・日柱＋年柱 計算ロジック
+// 年柱は立春（2月4日固定）を年の境界として使用
+
+import { LICHUN_MONTH, LICHUN_DAY } from "./kyusei";
 
 /** 十干の定義 */
 export const TEN_STEMS = [
@@ -52,7 +55,7 @@ export const DAY_KAN_TRAITS: Record<TenStem, string> = {
  * 日柱を計算するための基準日からの日数差分を求める
  *
  * 日柱の計算方法（簡易版）:
- * 1. 基準日（1900年1月1日 = 甲子）からの経過日数を計算
+ * 1. 基準日（1900年1月1日 = 庚子）からの経過日数を計算
  * 2. 経過日数 mod 60 で六十干支のインデックスを求める
  * 3. インデックスから天干と地支を求める
  *
@@ -60,8 +63,7 @@ export const DAY_KAN_TRAITS: Record<TenStem, string> = {
  * 厳密な計算には出生時刻が必要。MVPでは日付のみで計算する。
  */
 
-// 基準日: 1900年1月1日は「甲子」（六十干支の1番目）
-// ただし実際の暦では1900年1月1日は「庚子」（干支番号37）
+// 基準日: 1900年1月1日は「庚子」（干支番号37）
 const REFERENCE_DATE = new Date(1900, 0, 1); // 1900-01-01
 const REFERENCE_KANSHI_INDEX = 36; // 庚子のインデックス（0始まり）
 
@@ -132,5 +134,63 @@ export function calculateDayPillar(
     dayKan,
     dayBranch,
     pillar: `${dayKan}${dayBranch}`,
+  };
+}
+
+/**
+ * 生年月日から年柱（年干と年支）を計算する
+ * 立春（2月4日固定）を年の境界として使用
+ *
+ * 年柱の計算:
+ * - 天干: (年 - 4) % 10
+ * - 地支: (年 - 4) % 12
+ *
+ * @param birthDate YYYY-MM-DD形式の文字列
+ * @param birthYear 生まれた年（birthDateがない場合のフォールバック）
+ * @returns { yearKan: 天干, yearBranch: 地支, pillar: 干支の組み合わせ } またはnull
+ */
+export function calculateYearPillar(
+  birthDate: string | null,
+  birthYear: number | null
+): { yearKan: TenStem; yearBranch: TwelveBranch; pillar: string } | null {
+  let year: number | null = null;
+
+  if (birthDate) {
+    const parts = birthDate.split("-");
+    if (parts.length >= 3) {
+      const y = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10);
+      const d = parseInt(parts[2], 10);
+      if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+        // 立春を考慮した年
+        if (m < LICHUN_MONTH || (m === LICHUN_MONTH && d < LICHUN_DAY)) {
+          year = y - 1;
+        } else {
+          year = y;
+        }
+      } else if (!isNaN(y)) {
+        year = y;
+      }
+    }
+  }
+
+  if (year === null) {
+    year = birthYear;
+  }
+
+  if (year === null || year < 1) return null;
+
+  // 天干: (年 - 4) % 10
+  const stemIndex = ((year - 4) % 10 + 10) % 10;
+  // 地支: (年 - 4) % 12
+  const branchIndex = ((year - 4) % 12 + 12) % 12;
+
+  const yearKan = TEN_STEMS[stemIndex];
+  const yearBranch = TWELVE_BRANCHES[branchIndex];
+
+  return {
+    yearKan,
+    yearBranch,
+    pillar: `${yearKan}${yearBranch}`,
   };
 }

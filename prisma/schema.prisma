@@ -128,3 +128,17 @@ model GuidanceCache {
 
   @@unique([type, periodKey])
 }
+
+// APIコストログ（全環境で記録、将来の分析用）
+model ApiCostLog {
+  id               Int      @id @default(autoincrement())
+  feature          String   // "daily_guidance" | "weekly_guidance" | "monthly_guidance" | "consultation" | "compatibility" | "memory_compress" | "quick_analysis" | "deep_analysis" | "deep_analysis_continue"
+  model            String   // "claude-haiku-4-5-20251001" | "claude-sonnet-4-6"
+  inputTokens      Int
+  outputTokens     Int
+  cacheReadTokens  Int      @default(0)
+  cacheWriteTokens Int      @default(0)
+  costUSD          Float
+  costJPY          Float    // USD * 150 で概算
+  createdAt        DateTime @default(now())
+}

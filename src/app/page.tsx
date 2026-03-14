@@ -695,7 +695,7 @@ export default function HomePage() {
         </Link>
 
         <Link
-          href="/consult/new"
+          href="/persons"
           className="card hover:border-gold transition-all duration-300 group flex items-center gap-4"
         >
           <span className="w-10 h-10 rounded-lg bg-jade/10 border border-jade-dim flex items-center justify-center text-jade shrink-0">
@@ -717,7 +717,7 @@ export default function HomePage() {
               相談する
             </h3>
             <p className="text-xs text-text-muted mt-0.5">
-              AIがアクションプランを提案
+              人物を選んでAIに相談
             </p>
           </div>
         </Link>

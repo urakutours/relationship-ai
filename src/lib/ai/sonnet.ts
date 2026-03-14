@@ -10,7 +10,7 @@ import {
   SONNET_WEEKLY_GUIDANCE_INSTRUCTION,
 } from "./prompts";
 import { getClient } from "./client";
-import { calculateCost } from "@/lib/cost-tracker";
+import { calculateCost, logApiCost } from "@/lib/cost-tracker";
 import type { CostInfo, ConsultPayload, DivinationResult } from "@/lib/types";
 
 const SONNET_MODEL = "claude-sonnet-4-6";
@@ -21,6 +21,15 @@ const TOKEN_LIMITS = {
   PREMIUM: 1200,
   DEEP: 1500,
 } as const;
+
+/** usageからキャッシュトークン数を安全に取得するヘルパー */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getCacheTokens(usage: any): { read: number; write: number } {
+  return {
+    read: (usage.cache_read_input_tokens as number) ?? 0,
+    write: (usage.cache_creation_input_tokens as number) ?? 0,
+  };
+}
 
 /** ディープ相談の結果型 */
 export interface ConsultResult {
@@ -136,19 +145,16 @@ ${consultationContext}
     messages: [{ role: "user", content: userMessage }],
   });
 
+  const cache = getCacheTokens(response.usage);
+
   // コスト計算（開発環境のみ）
   const costInfo =
     process.env.NODE_ENV === "development"
-      ? calculateCost(
-          SONNET_MODEL,
-          response.usage.input_tokens,
-          response.usage.output_tokens,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ((response.usage as any).cache_read_input_tokens as number) ?? 0,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ((response.usage as any).cache_creation_input_tokens as number) ?? 0
-        )
+      ? calculateCost(SONNET_MODEL, response.usage.input_tokens, response.usage.output_tokens, cache.read, cache.write)
       : undefined;
+
+  // コストログDB書き込み（全環境）
+  logApiCost("consultation", SONNET_MODEL, response.usage.input_tokens, response.usage.output_tokens, cache.read, cache.write);
 
   const text =
     response.content[0].type === "text" ? response.content[0].text : "";
@@ -226,18 +232,15 @@ MBTI: ${userProfile.mbti ?? "不明"}
     messages: [{ role: "user", content: userMessage }],
   });
 
+  const cache = getCacheTokens(response.usage);
+
   const costInfo =
     process.env.NODE_ENV === "development"
-      ? calculateCost(
-          SONNET_MODEL,
-          response.usage.input_tokens,
-          response.usage.output_tokens,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ((response.usage as any).cache_read_input_tokens as number) ?? 0,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ((response.usage as any).cache_creation_input_tokens as number) ?? 0
-        )
+      ? calculateCost(SONNET_MODEL, response.usage.input_tokens, response.usage.output_tokens, cache.read, cache.write)
       : undefined;
+
+  // コストログDB書き込み（全環境）
+  logApiCost("monthly_guidance", SONNET_MODEL, response.usage.input_tokens, response.usage.output_tokens, cache.read, cache.write);
 
   const text =
     response.content[0].type === "text" ? response.content[0].text : "";
@@ -311,18 +314,15 @@ MBTI: ${userProfile.mbti ?? "不明"}
     messages: [{ role: "user", content: userMessage }],
   });
 
+  const cache = getCacheTokens(response.usage);
+
   const costInfo =
     process.env.NODE_ENV === "development"
-      ? calculateCost(
-          SONNET_MODEL,
-          response.usage.input_tokens,
-          response.usage.output_tokens,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ((response.usage as any).cache_read_input_tokens as number) ?? 0,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ((response.usage as any).cache_creation_input_tokens as number) ?? 0
-        )
+      ? calculateCost(SONNET_MODEL, response.usage.input_tokens, response.usage.output_tokens, cache.read, cache.write)
       : undefined;
+
+  // コストログDB書き込み（全環境）
+  logApiCost("weekly_guidance", SONNET_MODEL, response.usage.input_tokens, response.usage.output_tokens, cache.read, cache.write);
 
   const text =
     response.content[0].type === "text" ? response.content[0].text : "";
