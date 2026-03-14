@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { calcDivinationProfile } from "@/lib/divination";
 import { generateWeeklyGuidance } from "@/lib/ai/sonnet";
 import { getISOWeekKey, getMonthKey, formatWeekRange } from "@/lib/date-utils";
+import { checkRateLimit, RATE_LIMITS, rateLimitError } from "@/lib/rate-limiter";
 
 /** 文字列からJSONオブジェクトを安全にパースする（コードフェンス対応） */
 function safeParseJson(raw: string): Record<string, unknown> {
@@ -17,6 +18,9 @@ function safeParseJson(raw: string): Record<string, unknown> {
 
 export async function GET() {
   try {
+    const globalCheck = checkRateLimit("global", RATE_LIMITS.global);
+    if (!globalCheck.allowed) return NextResponse.json(rateLimitError(globalCheck.remaining), { status: 429 });
+
     const now = new Date();
     const weekKey = getISOWeekKey(now);
     const monthKey = getMonthKey(now);

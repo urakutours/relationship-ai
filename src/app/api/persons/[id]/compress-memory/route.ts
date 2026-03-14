@@ -3,12 +3,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { generateCompressedMemory } from "@/lib/ai/compress-memory";
+import { checkRateLimit, RATE_LIMITS, rateLimitError } from "@/lib/rate-limiter";
 
 export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const globalCheck = checkRateLimit("global", RATE_LIMITS.global);
+    if (!globalCheck.allowed) return NextResponse.json(rateLimitError(globalCheck.remaining), { status: 429 });
+    const featureCheck = checkRateLimit("memory_compress", RATE_LIMITS.memory_compress);
+    if (!featureCheck.allowed) return NextResponse.json(rateLimitError(featureCheck.remaining), { status: 429 });
+
     const { id } = await params;
 
     const person = await prisma.person.findUnique({

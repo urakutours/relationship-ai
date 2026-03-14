@@ -1,6 +1,6 @@
-// GET /api/costs
-// コストダッシュボード用データ取得（開発環境のみUI表示、データは全環境で記録済み）
-import { NextResponse } from "next/server";
+// GET /api/costs?admin=ADMIN_PASSWORD
+// コストダッシュボード用データ取得（ADMIN_PASSWORD認証必須）
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { USD_TO_JPY } from "@/lib/cost-tracker";
 
@@ -17,7 +17,18 @@ const FEATURE_LABELS: Record<string, string> = {
   deep_analysis_continue: "深掘り続き",
 };
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // ADMIN_PASSWORD認証（設定されている場合のみ）
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (adminPassword) {
+    const urlAdmin = request.nextUrl.searchParams.get("admin");
+    if (urlAdmin !== adminPassword) {
+      return NextResponse.json(
+        { error: "管理者パスワードが正しくありません" },
+        { status: 403 }
+      );
+    }
+  }
   try {
     // 今日の0:00（JST）を計算
     const now = new Date();

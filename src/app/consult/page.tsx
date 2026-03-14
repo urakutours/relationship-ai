@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import type { ConsultationLogData, PersonData } from "@/lib/types";
+import { formatRelationshipShort } from "@/lib/relationship-types";
 
 export default function ConsultHistoryPage() {
   const [logs, setLogs] = useState<ConsultationLogData[]>([]);
@@ -18,14 +19,22 @@ export default function ConsultHistoryPage() {
   // 展開中のログID
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  // IntersectionObserver用
-  const sentinelRef = useRef<HTMLDivElement>(null);
-
   // 結果記録モーダル
   const [outcomeLogId, setOutcomeLogId] = useState<string | null>(null);
   const [outcomeRating, setOutcomeRating] = useState(0);
   const [outcomeText, setOutcomeText] = useState("");
   const [outcomeSaving, setOutcomeSaving] = useState(false);
+
+  // 新しい相談モーダル
+  const [showNewConsultModal, setShowNewConsultModal] = useState(false);
+  const [newConsultPersonId, setNewConsultPersonId] = useState("");
+  const [newConsultType, setNewConsultType] = useState<"standard" | "deep">("standard");
+  const [newConsultContext, setNewConsultContext] = useState("");
+  const [newConsultLoading, setNewConsultLoading] = useState(false);
+  const [newConsultResult, setNewConsultResult] = useState<string | null>(null);
+
+  // IntersectionObserver用
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   // 人物一覧取得
   useEffect(() => {
@@ -139,6 +148,62 @@ export default function ConsultHistoryPage() {
     }
   };
 
+  // 新しい相談モーダル
+  const openNewConsultModal = () => {
+    setShowNewConsultModal(true);
+    setNewConsultPersonId("");
+    setNewConsultType("standard");
+    setNewConsultContext("");
+    setNewConsultResult(null);
+    setNewConsultLoading(false);
+  };
+
+  const closeNewConsultModal = () => {
+    setShowNewConsultModal(false);
+    setNewConsultResult(null);
+  };
+
+  // 選択中の人物情報を取得
+  const selectedPerson = persons.find((p) => p.id === newConsultPersonId);
+
+  // 相談を実行
+  const submitConsult = async () => {
+    if (!newConsultPersonId || !newConsultContext.trim()) return;
+    setNewConsultLoading(true);
+    try {
+      const res = await fetch("/api/consult", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          personId: newConsultPersonId,
+          context: newConsultContext.trim(),
+          consultType: newConsultType === "deep" ? "deep" : "standard",
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setNewConsultResult(data.result);
+        // 履歴を再読み込み
+        fetchLogs();
+      } else {
+        setNewConsultResult(data.error || "相談に失敗しました");
+      }
+    } catch {
+      setNewConsultResult("ネットワークエラーが発生しました");
+    } finally {
+      setNewConsultLoading(false);
+    }
+  };
+
+  // 最終相談日を取得
+  const getLastConsultDate = (personId: string): string | null => {
+    const personLogs = logs.filter((l) => l.personId === personId);
+    if (personLogs.length === 0) return null;
+    const latest = personLogs[0];
+    const d = new Date(latest.createdAt);
+    return `${d.getMonth() + 1}月${d.getDate()}日`;
+  };
+
   // 日付フォーマット
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
@@ -156,11 +221,13 @@ export default function ConsultHistoryPage() {
         <h1 className="font-display text-[32px] font-light text-gold tracking-wide">
           相談履歴
         </h1>
-        <Link href="/consult/new"
-          className="inline-flex items-center gap-1.5 px-4 py-2 border border-jade-dim text-jade bg-transparent rounded-[4px] text-sm hover:bg-jade hover:text-base transition-all duration-300">
+        <button
+          onClick={openNewConsultModal}
+          className="inline-flex items-center gap-1.5 px-4 py-2 border border-jade-dim text-jade bg-transparent rounded-[4px] text-sm hover:bg-jade hover:text-base transition-all duration-300"
+        >
           <span className="text-jade leading-none">+</span>
           新しい相談
-        </Link>
+        </button>
       </div>
 
       {/* フィルター */}
@@ -304,8 +371,6 @@ export default function ConsultHistoryPage() {
                       </p>
                     </div>
 
-                    {/* モバイル: 日時は既にヘッダーに表示 */}
-
                     {/* 結果 */}
                     <div className="relative">
                       <div
@@ -412,6 +477,183 @@ export default function ConsultHistoryPage() {
                 className="btn-ghost flex-1 text-sm py-2">
                 {outcomeSaving ? "保存中..." : "保存"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 新しい相談モーダル */}
+      {showNewConsultModal && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+          onClick={(e) => { if (e.target === e.currentTarget && !newConsultLoading) closeNewConsultModal(); }}
+        >
+          <div className="bg-surface border border-border rounded-lg w-full max-w-lg mx-4 max-h-[85vh] flex flex-col">
+            {/* ヘッダー */}
+            <div className="px-6 pt-5 pb-3 border-b border-border-subtle flex items-center justify-between shrink-0">
+              <h3 className="font-display text-lg text-gold tracking-wide">新しい相談</h3>
+              <button
+                onClick={closeNewConsultModal}
+                disabled={newConsultLoading}
+                className="text-text-muted hover:text-text-secondary transition-colors text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* コンテンツ */}
+            <div className="px-6 py-5 space-y-5 overflow-y-auto flex-1">
+              {/* 結果表示（相談完了後） */}
+              {newConsultResult ? (
+                <div className="space-y-4">
+                  <div className="relative">
+                    <div className={`absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent ${
+                      newConsultType === "deep" ? "via-jade-dim" : "via-gold-dim"
+                    } to-transparent`} />
+                    <div className="py-3">
+                      <div className="markdown-body text-[13px]">
+                        <ReactMarkdown>{newConsultResult}</ReactMarkdown>
+                      </div>
+                    </div>
+                  </div>
+                  {selectedPerson && (
+                    <Link
+                      href={`/persons/${selectedPerson.id}`}
+                      className="inline-flex items-center gap-1.5 text-xs text-jade hover:text-gold transition-colors"
+                    >
+                      {selectedPerson.nickname}の詳細ページへ →
+                    </Link>
+                  )}
+                </div>
+              ) : (
+                <>
+                  {/* 人物選択 */}
+                  <div>
+                    <label className="block text-xs text-text-secondary mb-2">相談する人物</label>
+                    <select
+                      value={newConsultPersonId}
+                      onChange={(e) => setNewConsultPersonId(e.target.value)}
+                      disabled={newConsultLoading}
+                      className="input-underline w-full text-sm"
+                    >
+                      <option value="">人物を選択してください</option>
+                      {persons.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.nickname}（{formatRelationshipShort(p.relationshipCategory, p.relationshipSubtype, p.relationship)}）
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* 人物選択後の情報表示 */}
+                  {selectedPerson && (
+                    <div className="flex items-center gap-4 px-3 py-2 bg-base rounded-[4px] text-xs text-text-muted">
+                      {selectedPerson.compatibilityScore !== null && (
+                        <span>
+                          相性: <span className="text-gold">{"★".repeat(Math.round(selectedPerson.compatibilityScore / 20))}</span>
+                          <span className="text-text-muted">{"☆".repeat(5 - Math.round(selectedPerson.compatibilityScore / 20))}</span>
+                        </span>
+                      )}
+                      {(() => {
+                        const lastDate = getLastConsultDate(selectedPerson.id);
+                        return lastDate ? (
+                          <span>最終相談: {lastDate}</span>
+                        ) : (
+                          <span>まだ相談していません</span>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* 相談の種類 */}
+                  <div>
+                    <label className="block text-xs text-text-secondary mb-2">相談の種類</label>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setNewConsultType("standard")}
+                        disabled={newConsultLoading}
+                        className={`flex-1 py-2.5 px-4 rounded-[4px] text-sm border transition-all duration-200 ${
+                          newConsultType === "standard"
+                            ? "border-gold bg-gold/10 text-gold"
+                            : "border-border-subtle text-text-secondary hover:border-gold-dim"
+                        }`}
+                      >
+                        標準相談
+                      </button>
+                      <button
+                        onClick={() => setNewConsultType("deep")}
+                        disabled={newConsultLoading}
+                        className={`flex-1 py-2.5 px-4 rounded-[4px] text-sm border transition-all duration-200 ${
+                          newConsultType === "deep"
+                            ? "border-jade bg-jade/10 text-jade"
+                            : "border-border-subtle text-text-secondary hover:border-jade-dim"
+                        }`}
+                      >
+                        詳細相談
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 相談内容 */}
+                  <div>
+                    <label className="block text-xs text-text-secondary mb-2">相談内容</label>
+                    <textarea
+                      value={newConsultContext}
+                      onChange={(e) => setNewConsultContext(e.target.value)}
+                      disabled={newConsultLoading}
+                      rows={4}
+                      placeholder="例: 明日の会議で新しい提案をしたいのですが、どう切り出すか悩んでいます"
+                      className="w-full bg-transparent border border-border-subtle rounded px-3 py-2.5 text-text-primary text-sm outline-none resize-none placeholder:text-text-muted focus:border-gold transition-colors"
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* ローディング表示 */}
+              {newConsultLoading && (
+                <div className="flex items-center justify-center gap-3 py-4">
+                  <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+                  <p className="text-text-muted text-sm animate-pulse">
+                    {newConsultType === "deep" ? "詳細分析中..." : "分析中..."}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* フッター */}
+            <div className="flex gap-3 px-6 pb-5 pt-3 border-t border-border-subtle shrink-0">
+              {newConsultResult ? (
+                // 結果表示後は「閉じる」ボタンのみ
+                <button
+                  onClick={closeNewConsultModal}
+                  className="btn-ghost flex-1 text-sm py-2.5"
+                >
+                  閉じる
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={closeNewConsultModal}
+                    disabled={newConsultLoading}
+                    className="flex-1 py-2.5 text-text-muted text-sm hover:text-text-secondary transition-colors"
+                  >
+                    キャンセル
+                  </button>
+                  <button
+                    onClick={submitConsult}
+                    disabled={!newConsultPersonId || !newConsultContext.trim() || newConsultLoading}
+                    className={`flex-1 py-2.5 text-sm rounded-[4px] border transition-all duration-300 ${
+                      !newConsultPersonId || !newConsultContext.trim() || newConsultLoading
+                        ? "border-border-subtle text-text-muted cursor-not-allowed"
+                        : newConsultType === "deep"
+                          ? "border-jade text-jade hover:bg-jade hover:text-base"
+                          : "border-gold text-gold hover:bg-gold hover:text-base"
+                    }`}
+                  >
+                    {newConsultLoading ? "分析中..." : "相談する"}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

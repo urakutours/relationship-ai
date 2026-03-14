@@ -4,10 +4,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { calculateAllDivinations, calcDivinationProfile } from "@/lib/divination";
 import { generateCompatibilityScore } from "@/lib/ai/haiku";
+import { checkRateLimit, RATE_LIMITS, rateLimitError } from "@/lib/rate-limiter";
 import type { DivinationResult } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
   try {
+    const globalCheck = checkRateLimit("global", RATE_LIMITS.global);
+    if (!globalCheck.allowed) return NextResponse.json(rateLimitError(globalCheck.remaining), { status: 429 });
+
     const { personId1, personId2 } = await request.json();
 
     if (!personId1 || !personId2) {

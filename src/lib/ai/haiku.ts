@@ -8,6 +8,7 @@ import {
   HAIKU_BIORHYTHM_INSTRUCTION,
 } from "./prompts";
 import { getClient } from "./client";
+import { resolveTraits } from "./trait-resolver";
 import { calculateCost, logApiCost } from "@/lib/cost-tracker";
 import type { CostInfo, DivinationResult } from "@/lib/types";
 
@@ -46,17 +47,11 @@ export async function generateCompatibilityScore(
   const userMessage = `
 ## 人物1: ${person1Name}
 観察メモ: ${person1Traits.length > 0 ? person1Traits.join("、") : "なし"}
-西洋星座: ${person1Divination.solarSign ?? "不明"}
-数秘術: ${person1Divination.numerology ?? "不明"}
-九星: ${person1Divination.kyusei ?? "不明"}
-日干: ${person1Divination.dayKan ?? "不明"}
+${resolveTraits(person1Divination)}
 
 ## 人物2: ${person2Name}
 観察メモ: ${person2Traits.length > 0 ? person2Traits.join("、") : "なし"}
-西洋星座: ${person2Divination.solarSign ?? "不明"}
-数秘術: ${person2Divination.numerology ?? "不明"}
-九星: ${person2Divination.kyusei ?? "不明"}
-日干: ${person2Divination.dayKan ?? "不明"}
+${resolveTraits(person2Divination)}
 `;
 
   const response = await anthropic.messages.create({

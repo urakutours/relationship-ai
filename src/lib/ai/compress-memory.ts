@@ -71,6 +71,7 @@ ${logsText}`;
         {
           type: "text",
           text: HAIKU_COMPRESS_MEMORY_INSTRUCTION,
+          cache_control: { type: "ephemeral" },
         },
       ],
       messages: [{ role: "user", content: userMessage }],

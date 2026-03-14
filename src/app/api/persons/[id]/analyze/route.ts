@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { getClient } from "@/lib/ai/client";
 import { calculateCost, logApiCost } from "@/lib/cost-tracker";
 import { calcDivinationProfile } from "@/lib/divination";
+import { resolveTraits, formatWuxing } from "@/lib/ai/trait-resolver";
+import { checkRateLimit, RATE_LIMITS, rateLimitError } from "@/lib/rate-limiter";
 import {
   DIVINATION_SYSTEM_PROMPT,
   HAIKU_QUICK_ANALYSIS_INSTRUCTION,
@@ -18,6 +20,11 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const globalCheck = checkRateLimit("global", RATE_LIMITS.global);
+    if (!globalCheck.allowed) return NextResponse.json(rateLimitError(globalCheck.remaining), { status: 429 });
+    const featureCheck = checkRateLimit("quick_analysis", RATE_LIMITS.quick_analysis);
+    if (!featureCheck.allowed) return NextResponse.json(rateLimitError(featureCheck.remaining), { status: 429 });
+
     const { id } = await params;
 
     // Person と UserProfile を並列取得
@@ -60,15 +67,8 @@ export async function POST(
 ## 相談者自身
 ニックネーム: ${userProfile.nickname}
 特性メモ: ${traits.length > 0 ? traits.join("、") : "なし"}
-西洋星座: ${myselfDiv.solarSign ?? "不明"}
-数秘術: ${myselfDiv.numerology ?? "不明"}
-九星: ${myselfDiv.kyusei ?? "不明"}
-日干: ${myselfDiv.dayKan ?? "不明"}
-五行バランス: ${
-        myselfDiv.wuxingProfile
-          ? `木${myselfDiv.wuxingProfile.wood} 火${myselfDiv.wuxingProfile.fire} 土${myselfDiv.wuxingProfile.earth} 金${myselfDiv.wuxingProfile.metal} 水${myselfDiv.wuxingProfile.water}`
-          : "不明"
-      }
+${resolveTraits(myselfDiv)}
+五行バランス: ${formatWuxing(myselfDiv)}
 `;
     }
 
@@ -85,15 +85,8 @@ ${userProfile ? `- ${userProfile.nickname}を呼ぶ際は「${userProfile.nickna
 敬称: ${honorificSuffix}
 関係性: ${person.relationship}
 観察メモ: ${observations.length > 0 ? observations.join("、") : "なし"}
-西洋星座: ${personDiv.solarSign ?? "不明"}
-数秘術: ${personDiv.numerology ?? "不明"}
-九星: ${personDiv.kyusei ?? "不明"}
-日干: ${personDiv.dayKan ?? "不明"}
-五行バランス: ${
-      personDiv.wuxingProfile
-        ? `木${personDiv.wuxingProfile.wood} 火${personDiv.wuxingProfile.fire} 土${personDiv.wuxingProfile.earth} 金${personDiv.wuxingProfile.metal} 水${personDiv.wuxingProfile.water}`
-        : "不明"
-    }
+${resolveTraits(personDiv)}
+五行バランス: ${formatWuxing(personDiv)}
 `;
 
     // Haiku呼び出し

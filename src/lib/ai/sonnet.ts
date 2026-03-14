@@ -10,6 +10,7 @@ import {
   SONNET_WEEKLY_GUIDANCE_INSTRUCTION,
 } from "./prompts";
 import { getClient } from "./client";
+import { resolveTraits, formatWuxing } from "./trait-resolver";
 import { calculateCost, logApiCost } from "@/lib/cost-tracker";
 import type { CostInfo, ConsultPayload, DivinationResult } from "@/lib/types";
 
@@ -64,15 +65,8 @@ export async function generateConsultation(
 ## myself（相談者自身）
 ニックネーム: ${myself.nickname}
 特性メモ: ${myself.observedTraits.length > 0 ? myself.observedTraits.join("、") : "なし"}
-西洋星座: ${myselfDiv?.solarSign ?? "不明"}
-数秘術（誕生数）: ${myselfDiv?.numerology ?? "不明"}
-九星: ${myselfDiv?.kyusei ?? "不明"}
-日干: ${myselfDiv?.dayKan ?? "不明"}
-五行バランス: ${
-      myselfDiv?.wuxingProfile
-        ? `木${myselfDiv.wuxingProfile.wood} 火${myselfDiv.wuxingProfile.fire} 土${myselfDiv.wuxingProfile.earth} 金${myselfDiv.wuxingProfile.metal} 水${myselfDiv.wuxingProfile.water}`
-        : "不明"
-    }
+${myselfDiv ? resolveTraits(myselfDiv) : "占術情報: 不明"}
+五行バランス: ${myselfDiv ? formatWuxing(myselfDiv) : "不明"}
 `;
   }
 
@@ -114,15 +108,8 @@ ${myself ? `- ${myself.nickname}を呼ぶ際は「${myself.nickname}さん」と
 敬称: ${honorificSuffix}
 関係性: ${target.relationship}
 観察メモ: ${target.observedTraits.length > 0 ? target.observedTraits.join("、") : "なし"}
-西洋星座: ${target.divination.solarSign ?? "不明"}
-数秘術（誕生数）: ${target.divination.numerology ?? "不明"}
-九星: ${target.divination.kyusei ?? "不明"}
-日干: ${target.divination.dayKan ?? "不明"}
-五行バランス: ${
-    target.divination.wuxingProfile
-      ? `木${target.divination.wuxingProfile.wood} 火${target.divination.wuxingProfile.fire} 土${target.divination.wuxingProfile.earth} 金${target.divination.wuxingProfile.metal} 水${target.divination.wuxingProfile.water}`
-      : "不明"
-  }
+${resolveTraits(target.divination)}
+五行バランス: ${formatWuxing(target.divination)}
 ${compressedMemorySection}${recentSection}${honorificNote}
 ## consultationContext（相談内容）
 ${consultationContext}
@@ -203,15 +190,8 @@ MBTI: ${userProfile.mbti ?? "不明"}
 特性メモ: ${userProfile.memoTags && userProfile.memoTags.length > 0 ? userProfile.memoTags.join("、") : "なし"}
 
 ## 占術情報
-西洋星座: ${divination.solarSign ?? "不明"}
-数秘術（誕生数）: ${divination.numerology ?? "不明"}
-九星: ${divination.kyusei ?? "不明"}
-日干: ${divination.dayKan ?? "不明"}
-五行バランス: ${
-    divination.wuxingProfile
-      ? `木${divination.wuxingProfile.wood} 火${divination.wuxingProfile.fire} 土${divination.wuxingProfile.earth} 金${divination.wuxingProfile.metal} 水${divination.wuxingProfile.water}`
-      : "不明"
-  }
+${resolveTraits(divination)}
+五行バランス: ${formatWuxing(divination)}
 
 今月のパーソナルガイダンスをJSON形式で生成してください。`;
 
@@ -285,15 +265,8 @@ MBTI: ${userProfile.mbti ?? "不明"}
 特性メモ: ${userProfile.memoTags && userProfile.memoTags.length > 0 ? userProfile.memoTags.join("、") : "なし"}
 
 ## 占術情報
-西洋星座: ${divination.solarSign ?? "不明"}
-数秘術（誕生数）: ${divination.numerology ?? "不明"}
-九星: ${divination.kyusei ?? "不明"}
-日干: ${divination.dayKan ?? "不明"}
-五行バランス: ${
-    divination.wuxingProfile
-      ? `木${divination.wuxingProfile.wood} 火${divination.wuxingProfile.fire} 土${divination.wuxingProfile.earth} 金${divination.wuxingProfile.metal} 水${divination.wuxingProfile.water}`
-      : "不明"
-  }
+${resolveTraits(divination)}
+五行バランス: ${formatWuxing(divination)}
 
 今週のパーソナルガイダンスをJSON形式で生成してください。`;
 

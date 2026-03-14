@@ -4,10 +4,21 @@ import { prisma } from "@/lib/prisma";
 import { calculateAllDivinations, calcDivinationProfile } from "@/lib/divination";
 import { generateConsultation } from "@/lib/ai/sonnet";
 import { generateCompressedMemory } from "@/lib/ai/compress-memory";
+import { checkRateLimit, RATE_LIMITS, rateLimitError } from "@/lib/rate-limiter";
 import type { ConsultPayload, MyselfInfo, CompressedMemory } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
   try {
+    // レート制限チェック
+    const globalCheck = checkRateLimit("global", RATE_LIMITS.global);
+    if (!globalCheck.allowed) {
+      return NextResponse.json(rateLimitError(globalCheck.remaining), { status: 429 });
+    }
+    const featureCheck = checkRateLimit("consultation", RATE_LIMITS.consultation);
+    if (!featureCheck.allowed) {
+      return NextResponse.json(rateLimitError(featureCheck.remaining), { status: 429 });
+    }
+
     const { personId, consultationContext, userType = "FREE", consultType = "standard" } = await request.json();
 
     if (!personId || !consultationContext) {

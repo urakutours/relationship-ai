@@ -69,17 +69,23 @@ export default function CostDashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // 開発環境チェック（本番ではアクセス不可）
-    if (process.env.NODE_ENV !== "development") {
-      setError("この画面は開発環境でのみ利用可能です");
-      setLoading(false);
-      return;
-    }
+    // URLパラメータからadminパスワードを取得してAPIに渡す
+    const params = new URLSearchParams(window.location.search);
+    const adminParam = params.get("admin");
+    const url = adminParam ? `/api/costs?admin=${encodeURIComponent(adminParam)}` : "/api/costs";
 
-    fetch("/api/costs")
-      .then((res) => res.json())
-      .then((d) => setData(d))
-      .catch(() => setError("データの取得に失敗しました"))
+    fetch(url)
+      .then((res) => {
+        if (res.status === 403) {
+          throw new Error("管理者パスワードが正しくありません。URLに ?admin=パスワード を付けてください。");
+        }
+        return res.json();
+      })
+      .then((d) => {
+        if (d.error) throw new Error(d.error);
+        setData(d);
+      })
+      .catch((e) => setError(e.message || "データの取得に失敗しました"))
       .finally(() => setLoading(false));
   }, []);
 

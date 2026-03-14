@@ -35,6 +35,9 @@ const WEEKDAY_MESSAGES: Record<number, string> = {
   6: "土曜日は充電の日。自分を労わることで来週の対人力が上がります。",
 };
 
+// ガイダンスタブの型
+type GuidanceTab = "daily" | "weekly" | "monthly";
+
 // ダッシュボードイベント型
 interface DashboardEvent {
   type: "birthday" | "anniversary";
@@ -67,6 +70,9 @@ export default function HomePage() {
   const [profileExists, setProfileExists] = useState<boolean | null>(null);
   const [debugMode, setDebugMode] = useState(false);
 
+  // ガイダンスタブ
+  const [guidanceTab, setGuidanceTab] = useState<GuidanceTab>("daily");
+
   // 週次ガイダンス
   const [weeklyGuidance, setWeeklyGuidance] = useState<WeeklyGuidance | null>(null);
   const [weeklyLoading, setWeeklyLoading] = useState(false);
@@ -81,9 +87,6 @@ export default function HomePage() {
   const [monthlyGeneratedAt, setMonthlyGeneratedAt] = useState<string>("");
   const [monthlyFromCache, setMonthlyFromCache] = useState(false);
   const [monthlyCostInfo, setMonthlyCostInfo] = useState<CostInfo | null>(null);
-
-  // 再生成
-  const [regeneratingType, setRegeneratingType] = useState<string | null>(null);
 
   // ダッシュボードデータ
   const [events, setEvents] = useState<DashboardEvent[]>([]);
@@ -203,37 +206,6 @@ export default function HomePage() {
     }
   };
 
-  // 再生成
-  const regenerateGuidance = async (type: "weekly" | "monthly") => {
-    setRegeneratingType(type);
-    try {
-      const res = await fetch("/api/guidance/regenerate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        if (type === "weekly") {
-          setWeeklyGuidance(data.guidance);
-          setWeeklyRange(data.weekRange || "");
-          setWeeklyGeneratedAt(data.generatedAt || "");
-          setWeeklyFromCache(false);
-          setWeeklyCostInfo(data.costInfo ?? null);
-        } else {
-          setMonthlyGuidance(data.guidance);
-          setMonthlyGeneratedAt(data.generatedAt || "");
-          setMonthlyFromCache(false);
-          setMonthlyCostInfo(data.costInfo ?? null);
-        }
-      }
-    } catch {
-      // エラー時は無視
-    } finally {
-      setRegeneratingType(null);
-    }
-  };
-
   /** 敬称付き名前 */
   const displayName = (nickname: string, honorific: string | null) =>
     withHonorific(nickname, honorific);
@@ -263,6 +235,13 @@ export default function HomePage() {
     );
   };
 
+  // タブの表示ラベル
+  const TAB_LABELS: { key: GuidanceTab; label: string }[] = [
+    { key: "daily", label: "今日" },
+    { key: "weekly", label: "今週" },
+    { key: "monthly", label: "今月" },
+  ];
+
   return (
     <div className="space-y-8">
       {/* 日付表示 */}
@@ -290,277 +269,278 @@ export default function HomePage() {
         </Link>
       )}
 
-      {/* ===== ウィジェット1: 今月のガイダンス ===== */}
+      {/* ===== ガイダンス（タブ切り替え） ===== */}
       <div className="card">
-        <h2 className="font-display text-xl text-gold mb-3 tracking-wide">
-          今月のガイダンス
-        </h2>
-
-        {monthlyLoading ? (
-          <div className="text-center py-8">
-            <p className="text-text-muted text-sm animate-pulse">
-              今月のガイダンスを生成しています...
-            </p>
-            <p className="text-text-muted text-xs mt-2">
-              初回は30秒ほどかかることがあります
-            </p>
-          </div>
-        ) : monthlyGuidance ? (
-          <div className="space-y-4">
-            {/* 月のテーマ */}
-            <div className="relative">
-              <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-gold-dim to-transparent" />
-              <div className="py-4 px-4">
-                <p className="font-display text-lg text-gold tracking-wide">
-                  {monthlyGuidance.monthlyTheme}
-                </p>
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-gold-dim to-transparent" />
-            </div>
-
-            {/* 全体運 */}
-            <div>
-              <h3 className="text-text-muted text-[11px] tracking-widest mb-1.5">全体運</h3>
-              <p className="text-text-primary text-[14px] leading-[1.9]">
-                {monthlyGuidance.overview}
-              </p>
-            </div>
-
-            {/* 人間関係 */}
-            <div>
-              <h3 className="text-text-muted text-[11px] tracking-widest mb-1.5">人間関係</h3>
-              <p className="text-text-primary text-[14px] leading-[1.9]">
-                {monthlyGuidance.relationships}
-              </p>
-            </div>
-
-            {/* 今月のアクション */}
-            <div className="bg-gold/5 border border-gold-dim rounded-lg px-4 py-3">
-              <h3 className="text-gold text-[11px] tracking-widest mb-1">今月のアクション</h3>
-              <p className="text-text-primary text-[14px] leading-[1.9]">
-                {monthlyGuidance.keyAction}
-              </p>
-            </div>
-
-            {/* ラッキーポイント */}
-            <div className="flex items-center gap-2 px-1">
-              <span className="text-gold text-sm">✦</span>
-              <p className="text-text-secondary text-[13px]">
-                {monthlyGuidance.luckyPoint}
-              </p>
-            </div>
-
-            {/* 再生成ボタン */}
+        {/* タブヘッダー */}
+        <div className="flex mb-4">
+          {TAB_LABELS.map(({ key, label }) => (
             <button
-              onClick={() => regenerateGuidance("monthly")}
-              disabled={regeneratingType === "monthly"}
-              className="btn-ghost text-xs"
+              key={key}
+              onClick={() => setGuidanceTab(key)}
+              className={`
+                flex-1 py-2.5 text-sm font-display tracking-wide transition-all duration-200
+                border-b-2
+                ${guidanceTab === key
+                  ? "text-gold border-gold"
+                  : "text-text-muted border-transparent hover:text-text-secondary hover:border-border-subtle"
+                }
+              `}
             >
-              {regeneratingType === "monthly" ? "再生成中..." : "再生成"}
+              {label}
             </button>
-          </div>
-        ) : (
-          <p className="text-text-muted text-sm py-4">
-            月次ガイダンスを取得できませんでした
-          </p>
-        )}
-
-        <DebugInfo
-          model="claude-sonnet-4-6"
-          generatedAt={monthlyGeneratedAt}
-          fromCache={monthlyFromCache}
-          cost={monthlyCostInfo}
-        />
-      </div>
-
-      {/* ===== ウィジェット2: 今週のガイダンス ===== */}
-      <div className="card">
-        <h2 className="font-display text-xl text-gold mb-3 tracking-wide">
-          今週のガイダンス
-        </h2>
-
-        {weeklyLoading ? (
-          <div className="text-center py-8">
-            <p className="text-text-muted text-sm animate-pulse">
-              今週のガイダンスを生成しています...
-            </p>
-            <p className="text-text-muted text-xs mt-2">
-              初回は30秒ほどかかることがあります
-            </p>
-          </div>
-        ) : weeklyGuidance ? (
-          <div className="space-y-4">
-            {/* 期間表示 */}
-            {weeklyRange && (
-              <p className="text-text-muted text-xs">{weeklyRange}</p>
-            )}
-
-            {/* 週のフォーカス */}
-            <div className="relative">
-              <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-gold-dim to-transparent" />
-              <div className="py-4 px-4">
-                <p className="font-display text-lg text-gold tracking-wide">
-                  {weeklyGuidance.weeklyFocus}
-                </p>
-              </div>
-              <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-gold-dim to-transparent" />
-            </div>
-
-            {/* 概要 */}
-            <div>
-              <h3 className="text-text-muted text-[11px] tracking-widest mb-1.5">概要</h3>
-              <p className="text-text-primary text-[14px] leading-[1.9]">
-                {weeklyGuidance.overview}
-              </p>
-            </div>
-
-            {/* 人間関係 */}
-            <div>
-              <h3 className="text-text-muted text-[11px] tracking-widest mb-1.5">人間関係</h3>
-              <p className="text-text-primary text-[14px] leading-[1.9]">
-                {weeklyGuidance.relationships}
-              </p>
-            </div>
-
-            {/* おすすめ行動日 */}
-            <div>
-              <h3 className="text-text-muted text-[11px] tracking-widest mb-1.5">おすすめ行動日</h3>
-              <p className="text-text-primary text-[14px] leading-[1.9]">
-                {weeklyGuidance.bestDays}
-              </p>
-            </div>
-
-            {/* 今週のアクション */}
-            <div className="bg-gold/5 border border-gold-dim rounded-lg px-4 py-3">
-              <h3 className="text-gold text-[11px] tracking-widest mb-1">今週のアクション</h3>
-              <p className="text-text-primary text-[14px] leading-[1.9]">
-                {weeklyGuidance.keyAction}
-              </p>
-            </div>
-
-            {/* 再生成ボタン */}
-            <button
-              onClick={() => regenerateGuidance("weekly")}
-              disabled={regeneratingType === "weekly"}
-              className="btn-ghost text-xs"
-            >
-              {regeneratingType === "weekly" ? "再生成中..." : "再生成"}
-            </button>
-          </div>
-        ) : (
-          <p className="text-text-muted text-sm py-4">
-            週次ガイダンスを取得できませんでした
-          </p>
-        )}
-
-        <DebugInfo
-          model="claude-sonnet-4-6"
-          generatedAt={weeklyGeneratedAt}
-          fromCache={weeklyFromCache}
-          cost={weeklyCostInfo}
-        />
-      </div>
-
-      {/* ===== ウィジェット3: 今日のガイダンス ===== */}
-      <div className="card">
-        <h2 className="font-display text-xl text-gold mb-3 tracking-wide">
-          今日のガイダンス
-        </h2>
-
-        {/* 曜日連動メッセージ */}
-        <p className="text-text-secondary text-[13px] leading-relaxed mb-5">
-          {weekdayMessage}
-        </p>
-
-        <div className="space-y-3 mb-6">
-          {/* メイン天気（排他選択） */}
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex gap-1.5">
-              {MAIN_WEATHER.map((w) => (
-                <button
-                  key={w.value}
-                  onClick={() => setWeather(w.value)}
-                  title={w.value}
-                  className={`
-                    w-10 h-10 rounded-[4px] text-lg flex items-center justify-center
-                    transition-all duration-200 border
-                    ${
-                      weather === w.value
-                        ? "border-gold bg-gold-subtle"
-                        : "border-border-subtle hover:border-gold-dim"
-                    }
-                  `}
-                >
-                  {w.icon}
-                </button>
-              ))}
-            </div>
-
-            <button
-              onClick={() => setShowExtra(!showExtra)}
-              className="text-[11px] text-text-muted hover:text-text-secondary transition-colors"
-            >
-              {showExtra ? "▾ コンディション" : "▸ コンディション"}
-              {extraConditions.length > 0 && (
-                <span className="ml-1 text-gold">({extraConditions.length})</span>
-              )}
-            </button>
-          </div>
-
-          {/* 追加コンディション（複数選択、折りたたみ） */}
-          {showExtra && (
-            <div className="flex gap-1.5 flex-wrap pl-0.5">
-              {EXTRA_CONDITIONS.map((c) => (
-                <button
-                  key={c.value}
-                  onClick={() => toggleCondition(c.value)}
-                  title={c.value}
-                  className={`
-                    h-8 px-2.5 rounded-[4px] text-xs flex items-center gap-1
-                    transition-all duration-200 border
-                    ${
-                      extraConditions.includes(c.value)
-                        ? "border-gold bg-gold-subtle text-gold"
-                        : "border-border-subtle text-text-secondary hover:border-gold-dim"
-                    }
-                  `}
-                >
-                  <span className="text-sm">{c.icon}</span>
-                  {c.value}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* アドバイス取得ボタン */}
-          <button
-            onClick={fetchAdvice}
-            disabled={loading}
-            className="btn-ghost text-sm"
-          >
-            {loading ? "まとめています..." : "アドバイスを取得"}
-          </button>
+          ))}
         </div>
 
-        {/* アドバイス表示 */}
-        {advice && (
-          <div className="relative">
-            <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-gold-dim to-transparent" />
-            <div className="py-5 px-4">
-              <p className="text-text-primary leading-[2] text-[15px]">
-                {advice}
-              </p>
+        {/* ===== 今日タブ ===== */}
+        {guidanceTab === "daily" && (
+          <div>
+            {/* 曜日連動メッセージ */}
+            <p className="text-text-secondary text-[13px] leading-relaxed mb-5">
+              {weekdayMessage}
+            </p>
+
+            <div className="space-y-3 mb-6">
+              {/* メイン天気（排他選択） */}
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex gap-1.5">
+                  {MAIN_WEATHER.map((w) => (
+                    <button
+                      key={w.value}
+                      onClick={() => setWeather(w.value)}
+                      title={w.value}
+                      className={`
+                        w-10 h-10 rounded-[4px] text-lg flex items-center justify-center
+                        transition-all duration-200 border
+                        ${
+                          weather === w.value
+                            ? "border-gold bg-gold-subtle"
+                            : "border-border-subtle hover:border-gold-dim"
+                        }
+                      `}
+                    >
+                      {w.icon}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={() => setShowExtra(!showExtra)}
+                  className="text-[11px] text-text-muted hover:text-text-secondary transition-colors"
+                >
+                  {showExtra ? "▾ コンディション" : "▸ コンディション"}
+                  {extraConditions.length > 0 && (
+                    <span className="ml-1 text-gold">({extraConditions.length})</span>
+                  )}
+                </button>
+              </div>
+
+              {/* 追加コンディション（複数選択、折りたたみ） */}
+              {showExtra && (
+                <div className="flex gap-1.5 flex-wrap pl-0.5">
+                  {EXTRA_CONDITIONS.map((c) => (
+                    <button
+                      key={c.value}
+                      onClick={() => toggleCondition(c.value)}
+                      title={c.value}
+                      className={`
+                        h-8 px-2.5 rounded-[4px] text-xs flex items-center gap-1
+                        transition-all duration-200 border
+                        ${
+                          extraConditions.includes(c.value)
+                            ? "border-gold bg-gold-subtle text-gold"
+                            : "border-border-subtle text-text-secondary hover:border-gold-dim"
+                        }
+                      `}
+                    >
+                      <span className="text-sm">{c.icon}</span>
+                      {c.value}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* アドバイス取得ボタン */}
+              <button
+                onClick={fetchAdvice}
+                disabled={loading}
+                className="btn-ghost text-sm"
+              >
+                {loading ? "まとめています..." : "アドバイスを取得"}
+              </button>
             </div>
-            <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-gold-dim to-transparent" />
+
+            {/* アドバイス表示 */}
+            {advice && (
+              <div className="relative">
+                <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-gold-dim to-transparent" />
+                <div className="py-5 px-4">
+                  <p className="text-text-primary leading-[2] text-[15px]">
+                    {advice}
+                  </p>
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-gold-dim to-transparent" />
+              </div>
+            )}
+
+            {/* コスト表示（debug=true パラメータ時のみ） */}
+            {debugMode && costInfo && (
+              <div className="mt-4 py-2 px-3 bg-base rounded-[4px] text-[10px] text-text-muted font-display tracking-wide">
+                MODEL: claude-haiku-4-5 | IN:{costInfo.inputTokens} | OUT:{costInfo.outputTokens} |
+                CACHE_R:{costInfo.cacheReadTokens} | CACHE_W:{costInfo.cacheCreationTokens} |
+                COST: &yen;{costInfo.estimatedCostJPY.toFixed(4)}
+              </div>
+            )}
           </div>
         )}
 
-        {/* コスト表示（debug=true パラメータ時のみ） */}
-        {debugMode && costInfo && (
-          <div className="mt-4 py-2 px-3 bg-base rounded-[4px] text-[10px] text-text-muted font-display tracking-wide">
-            MODEL: claude-haiku-4-5 | IN:{costInfo.inputTokens} | OUT:{costInfo.outputTokens} |
-            CACHE_R:{costInfo.cacheReadTokens} | CACHE_W:{costInfo.cacheCreationTokens} |
-            COST: &yen;{costInfo.estimatedCostJPY.toFixed(4)}
+        {/* ===== 今週タブ ===== */}
+        {guidanceTab === "weekly" && (
+          <div>
+            {weeklyLoading ? (
+              <div className="text-center py-8">
+                <p className="text-text-muted text-sm animate-pulse">
+                  今週のガイダンスを生成しています...
+                </p>
+                <p className="text-text-muted text-xs mt-2">
+                  初回は30秒ほどかかることがあります
+                </p>
+              </div>
+            ) : weeklyGuidance ? (
+              <div className="space-y-4">
+                {/* 期間表示 */}
+                {weeklyRange && (
+                  <p className="text-text-muted text-xs">{weeklyRange}</p>
+                )}
+
+                {/* 週のフォーカス */}
+                <div className="relative">
+                  <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-gold-dim to-transparent" />
+                  <div className="py-4 px-4">
+                    <p className="font-display text-lg text-gold tracking-wide">
+                      {weeklyGuidance.weeklyFocus}
+                    </p>
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-gold-dim to-transparent" />
+                </div>
+
+                {/* 概要 */}
+                <div>
+                  <h3 className="text-text-muted text-[11px] tracking-widest mb-1.5">概要</h3>
+                  <p className="text-text-primary text-[14px] leading-[1.9]">
+                    {weeklyGuidance.overview}
+                  </p>
+                </div>
+
+                {/* 人間関係 */}
+                <div>
+                  <h3 className="text-text-muted text-[11px] tracking-widest mb-1.5">人間関係</h3>
+                  <p className="text-text-primary text-[14px] leading-[1.9]">
+                    {weeklyGuidance.relationships}
+                  </p>
+                </div>
+
+                {/* おすすめ行動日 */}
+                <div>
+                  <h3 className="text-text-muted text-[11px] tracking-widest mb-1.5">おすすめ行動日</h3>
+                  <p className="text-text-primary text-[14px] leading-[1.9]">
+                    {weeklyGuidance.bestDays}
+                  </p>
+                </div>
+
+                {/* 今週のアクション */}
+                <div className="bg-gold/5 border border-gold-dim rounded-lg px-4 py-3">
+                  <h3 className="text-gold text-[11px] tracking-widest mb-1">今週のアクション</h3>
+                  <p className="text-text-primary text-[14px] leading-[1.9]">
+                    {weeklyGuidance.keyAction}
+                  </p>
+                </div>
+
+              </div>
+            ) : (
+              <p className="text-text-muted text-sm py-4">
+                週次ガイダンスを取得できませんでした
+              </p>
+            )}
+
+            <DebugInfo
+              model="claude-sonnet-4-6"
+              generatedAt={weeklyGeneratedAt}
+              fromCache={weeklyFromCache}
+              cost={weeklyCostInfo}
+            />
+          </div>
+        )}
+
+        {/* ===== 今月タブ ===== */}
+        {guidanceTab === "monthly" && (
+          <div>
+            {monthlyLoading ? (
+              <div className="text-center py-8">
+                <p className="text-text-muted text-sm animate-pulse">
+                  今月のガイダンスを生成しています...
+                </p>
+                <p className="text-text-muted text-xs mt-2">
+                  初回は30秒ほどかかることがあります
+                </p>
+              </div>
+            ) : monthlyGuidance ? (
+              <div className="space-y-4">
+                {/* 月のテーマ */}
+                <div className="relative">
+                  <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-gold-dim to-transparent" />
+                  <div className="py-4 px-4">
+                    <p className="font-display text-lg text-gold tracking-wide">
+                      {monthlyGuidance.monthlyTheme}
+                    </p>
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-gold-dim to-transparent" />
+                </div>
+
+                {/* 全体運 */}
+                <div>
+                  <h3 className="text-text-muted text-[11px] tracking-widest mb-1.5">全体運</h3>
+                  <p className="text-text-primary text-[14px] leading-[1.9]">
+                    {monthlyGuidance.overview}
+                  </p>
+                </div>
+
+                {/* 人間関係 */}
+                <div>
+                  <h3 className="text-text-muted text-[11px] tracking-widest mb-1.5">人間関係</h3>
+                  <p className="text-text-primary text-[14px] leading-[1.9]">
+                    {monthlyGuidance.relationships}
+                  </p>
+                </div>
+
+                {/* 今月のアクション */}
+                <div className="bg-gold/5 border border-gold-dim rounded-lg px-4 py-3">
+                  <h3 className="text-gold text-[11px] tracking-widest mb-1">今月のアクション</h3>
+                  <p className="text-text-primary text-[14px] leading-[1.9]">
+                    {monthlyGuidance.keyAction}
+                  </p>
+                </div>
+
+                {/* ラッキーポイント */}
+                <div className="flex items-center gap-2 px-1">
+                  <span className="text-gold text-sm">✦</span>
+                  <p className="text-text-secondary text-[13px]">
+                    {monthlyGuidance.luckyPoint}
+                  </p>
+                </div>
+
+              </div>
+            ) : (
+              <p className="text-text-muted text-sm py-4">
+                月次ガイダンスを取得できませんでした
+              </p>
+            )}
+
+            <DebugInfo
+              model="claude-sonnet-4-6"
+              generatedAt={monthlyGeneratedAt}
+              fromCache={monthlyFromCache}
+              cost={monthlyCostInfo}
+            />
           </div>
         )}
       </div>
@@ -699,6 +679,7 @@ export default function HomePage() {
           className="card hover:border-gold transition-all duration-300 group flex items-center gap-4"
         >
           <span className="w-10 h-10 rounded-lg bg-jade/10 border border-jade-dim flex items-center justify-center text-jade shrink-0">
+            {/* Users アイコン */}
             <svg
               width="20"
               height="20"
@@ -709,15 +690,18 @@ export default function HomePage() {
               strokeLinecap="round"
               strokeLinejoin="round"
             >
-              <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
             </svg>
           </span>
           <div>
             <h3 className="font-display text-base text-jade group-hover:text-jade tracking-wide">
-              相談する
+              人物一覧
             </h3>
             <p className="text-xs text-text-muted mt-0.5">
-              人物を選んでAIに相談
+              登録した人物の確認・相談
             </p>
           </div>
         </Link>

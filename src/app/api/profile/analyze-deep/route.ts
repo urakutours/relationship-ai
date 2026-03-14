@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { getClient } from "@/lib/ai/client";
 import { calculateCost, logApiCost } from "@/lib/cost-tracker";
 import { calcDivinationProfile } from "@/lib/divination";
+import { resolveTraits, formatWuxing } from "@/lib/ai/trait-resolver";
+import { checkRateLimit, RATE_LIMITS, rateLimitError } from "@/lib/rate-limiter";
 import {
   DIVINATION_SYSTEM_PROMPT,
   SONNET_SELF_DEEP_ANALYSIS_INSTRUCTION,
@@ -15,6 +17,11 @@ const MAX_TOKENS = 1500;
 
 export async function POST() {
   try {
+    const globalCheck = checkRateLimit("global", RATE_LIMITS.global);
+    if (!globalCheck.allowed) return NextResponse.json(rateLimitError(globalCheck.remaining), { status: 429 });
+    const featureCheck = checkRateLimit("deep_analysis", RATE_LIMITS.deep_analysis);
+    if (!featureCheck.allowed) return NextResponse.json(rateLimitError(featureCheck.remaining), { status: 429 });
+
     const userProfile = await prisma.userProfile.findUnique({ where: { id: 1 } });
 
     if (!userProfile) {
@@ -22,6 +29,19 @@ export async function POST() {
         { error: "プロフィールが登録されていません" },
         { status: 404 }
       );
+    }
+
+    // キャッシュチェック: プロフィール更新後に分析結果がある場合はキャッシュを返す
+    if (
+      userProfile.profileAnalysis &&
+      userProfile.profileAnalysisUpdatedAt &&
+      userProfile.profileAnalysisUpdatedAt > userProfile.updatedAt
+    ) {
+      return NextResponse.json({
+        deepNote: userProfile.profileAnalysis,
+        deepNoteUpdatedAt: userProfile.profileAnalysisUpdatedAt.toISOString(),
+        fromCache: true,
+      });
     }
 
     const div = calcDivinationProfile({
@@ -44,15 +64,8 @@ export async function POST() {
 MBTI: ${userProfile.mbti ?? "不明"}
 性別: ${userProfile.gender ?? "不明"}
 血液型: ${userProfile.bloodType ?? "不明"}
-西洋星座: ${div.solarSign ?? "不明"}
-数秘術: ${div.numerology ?? "不明"}
-九星: ${div.kyusei ?? "不明"}
-日干: ${div.dayKan ?? "不明"}
-五行バランス: ${
-      div.wuxingProfile
-        ? `木${div.wuxingProfile.wood} 火${div.wuxingProfile.fire} 土${div.wuxingProfile.earth} 金${div.wuxingProfile.metal} 水${div.wuxingProfile.water}`
-        : "不明"
-    }
+${resolveTraits(div)}
+五行バランス: ${formatWuxing(div)}
 ${quickNoteRef}`;
 
     const anthropic = getClient();
@@ -83,6 +96,8 @@ ${quickNoteRef}`;
       data: {
         deepNote: text.trim(),
         deepNoteUpdatedAt: now,
+        profileAnalysis: text.trim(),
+        profileAnalysisUpdatedAt: now,
       },
     });
 

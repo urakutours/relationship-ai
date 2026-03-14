@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RelationshipAI - 人間関係ナビゲーションアプリ
 
-## Getting Started
+東洋・西洋の占術と観察情報を統合し、人間関係のアクションプランを出力するアプリ。
 
-First, run the development server:
+## 技術スタック
+
+- Next.js 16 / TypeScript / Tailwind CSS v4
+- PostgreSQL（Supabase）/ Prisma v6
+- Anthropic Claude API（Haiku + Sonnet）
+
+## ローカル開発
 
 ```bash
+npm install
+cp .env.example .env.local
+# .env.local に値を設定
+npx prisma migrate dev --name init
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## デプロイ手順
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 前提
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- Vercelアカウント（GitHubのrelationship-aiリポジトリ接続済み）
+- Supabaseプロジェクト作成済み
 
-## Learn More
+### Supabase接続情報の取得
 
-To learn more about Next.js, take a look at the following resources:
+- **DATABASE_URL**: Supabase → Settings → Database → Connection string (URI)
+  - Transaction mode (port 6543) を使用
+- **DIRECT_URL**: Supabase → Settings → Database → Connection string (URI)
+  - Session mode (port 5432) を使用
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### 手順
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Supabaseダッシュボードから接続情報を取得
+2. Vercelダッシュボード → Settings → Environment Variables に設定:
+   - `DATABASE_URL`
+   - `DIRECT_URL`
+   - `ANTHROPIC_API_KEY`
+   - `BETA_PASSWORD`（ベータテスト用ログインパスワード）
+   - `ADMIN_PASSWORD`（コスト管理画面のパスワード）
+   - `NEXT_PUBLIC_APP_ENV=production`
+   - `DAILY_API_LIMIT=100`（任意、APIレート制限）
+3. Vercelダッシュボード → Settings → General → Root Directory がプロジェクトルートになっていることを確認
+4. GitHubにpush → 自動デプロイ
+5. デプロイ後、Vercelの提供するURLでアクセス
+6. ログイン画面で`BETA_PASSWORD`を入力
+7. コスト管理画面: `/admin/costs?admin=ADMIN_PASSWORD` でアクセス
 
-## Deploy on Vercel
+### 注意事項
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Vercelの無料プラン（Hobby）で十分
+- SupabaseのFreeプランで十分（テスト用）
+- 本番リリース時にSupabase Auth + Stripe課金に置き換え予定

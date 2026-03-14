@@ -5,8 +5,9 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // 人物（パーソナルCRM）
@@ -85,6 +86,9 @@ model UserProfile {
   deepNote           String?
   quickNoteUpdatedAt DateTime?
   deepNoteUpdatedAt  DateTime?
+  // プロフィール分析キャッシュ
+  profileAnalysis          String?    // Sonnet生成の深掘り分析結果（キャッシュ）
+  profileAnalysisUpdatedAt DateTime?  // 最終分析日時
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }

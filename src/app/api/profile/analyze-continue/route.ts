@@ -4,13 +4,21 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getClient } from "@/lib/ai/client";
 import { calculateCost, logApiCost } from "@/lib/cost-tracker";
-import { DIVINATION_SYSTEM_PROMPT } from "@/lib/ai/prompts";
+import { checkRateLimit, RATE_LIMITS, rateLimitError } from "@/lib/rate-limiter";
 
 const SONNET_MODEL = "claude-sonnet-4-6";
+
+const CONTINUE_SYSTEM_PROMPT = `あなたは人間関係のアドバイザーです。
+前回の分析の続きを書いてください。
+占術・性格分析の専門用語は使わず、自然な日本語で記述してください。
+前回の文体・トーンを維持してください。`;
 const MAX_TOKENS = 1500;
 
 export async function POST(request: NextRequest) {
   try {
+    const globalCheck = checkRateLimit("global", RATE_LIMITS.global);
+    if (!globalCheck.allowed) return NextResponse.json(rateLimitError(globalCheck.remaining), { status: 429 });
+
     const { truncatedContent } = await request.json();
 
     if (!truncatedContent) {
@@ -35,7 +43,7 @@ export async function POST(request: NextRequest) {
       system: [
         {
           type: "text",
-          text: DIVINATION_SYSTEM_PROMPT,
+          text: CONTINUE_SYSTEM_PROMPT,
           cache_control: { type: "ephemeral" },
         },
         {
