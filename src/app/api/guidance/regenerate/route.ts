@@ -10,6 +10,15 @@ import {
   formatWeekRange,
 } from "@/lib/date-utils";
 
+/** 文字列からJSONオブジェクトを安全にパースする（コードフェンス対応） */
+function safeParseJson(raw: string): Record<string, unknown> {
+  try { return JSON.parse(raw); } catch { /* fall through */ }
+  const stripped = raw.replace(/```(?:json)?\s*/g, "").replace(/```/g, "");
+  const match = stripped.match(/\{[\s\S]*\}/);
+  if (match) return JSON.parse(match[0]);
+  throw new Error("JSON not found in response");
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { type } = await request.json();
@@ -54,7 +63,6 @@ export async function POST(request: NextRequest) {
     };
 
     let result;
-    let guidance;
 
     if (type === "monthly") {
       result = await generateMonthlyGuidance(profileData, div, periodKey);
@@ -74,22 +82,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // DB保存
+    // JSONパース → クリーンなJSON文字列をDBに保存
+    const guidance = safeParseJson(result.content);
+    const cleanJson = JSON.stringify(guidance);
+
     await prisma.guidanceCache.create({
       data: {
         type,
         periodKey,
-        content: result.content,
+        content: cleanJson,
       },
     });
-
-    // JSONパース
-    try {
-      const jsonMatch = result.content.match(/\{[\s\S]*\}/);
-      guidance = jsonMatch ? JSON.parse(jsonMatch[0]) : { raw: result.content };
-    } catch {
-      guidance = { raw: result.content };
-    }
 
     return NextResponse.json({
       guidance,
@@ -97,6 +100,7 @@ export async function POST(request: NextRequest) {
       ...(type === "weekly" ? { weekRange: formatWeekRange(now) } : {}),
       generatedAt: new Date().toISOString(),
       fromCache: false,
+      model: "claude-sonnet-4-6",
       ...(process.env.NODE_ENV === "development" && result.costInfo
         ? { costInfo: result.costInfo }
         : {}),

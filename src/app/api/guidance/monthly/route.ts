@@ -6,6 +6,17 @@ import { calcDivinationProfile } from "@/lib/divination";
 import { generateMonthlyGuidance } from "@/lib/ai/sonnet";
 import { getMonthKey } from "@/lib/date-utils";
 
+/** 文字列からJSONオブジェクトを安全にパースする（コードフェンス対応） */
+function safeParseJson(raw: string): Record<string, unknown> {
+  // まず直接パースを試行
+  try { return JSON.parse(raw); } catch { /* fall through */ }
+  // コードフェンスを除去してJSON抽出
+  const stripped = raw.replace(/```(?:json)?\s*/g, "").replace(/```/g, "");
+  const match = stripped.match(/\{[\s\S]*\}/);
+  if (match) return JSON.parse(match[0]);
+  throw new Error("JSON not found in response");
+}
+
 export async function GET() {
   try {
     const monthKey = getMonthKey(new Date());
@@ -17,10 +28,11 @@ export async function GET() {
 
     if (cached) {
       return NextResponse.json({
-        guidance: JSON.parse(cached.content),
+        guidance: safeParseJson(cached.content),
         periodKey: monthKey,
         generatedAt: cached.generatedAt.toISOString(),
         fromCache: true,
+        model: "claude-sonnet-4-6",
       });
     }
 
@@ -53,29 +65,24 @@ export async function GET() {
       monthKey
     );
 
-    // DB保存
+    // JSONパース → クリーンなJSON文字列をDBに保存
+    const guidance = safeParseJson(result.content);
+    const cleanJson = JSON.stringify(guidance);
+
     await prisma.guidanceCache.create({
       data: {
         type: "monthly",
         periodKey: monthKey,
-        content: result.content,
+        content: cleanJson,
       },
     });
-
-    // JSONパースして返却
-    let guidance;
-    try {
-      const jsonMatch = result.content.match(/\{[\s\S]*\}/);
-      guidance = jsonMatch ? JSON.parse(jsonMatch[0]) : { raw: result.content };
-    } catch {
-      guidance = { raw: result.content };
-    }
 
     return NextResponse.json({
       guidance,
       periodKey: monthKey,
       generatedAt: new Date().toISOString(),
       fromCache: false,
+      model: "claude-sonnet-4-6",
       ...(process.env.NODE_ENV === "development" && result.costInfo
         ? { costInfo: result.costInfo }
         : {}),
